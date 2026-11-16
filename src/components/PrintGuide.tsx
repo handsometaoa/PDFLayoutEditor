@@ -1,6 +1,6 @@
 /**
- * 双面打印指引：排版层保证的规则 + 需要用户在打印对话框手选的设置，
- * 并提供常见打印机品牌官方说明书 / 支持页直达入口。
+ * 双面打印指引（精简版）：卡片内一行核心提醒，
+ * 详细步骤、Windows/macOS 通用路径与品牌官方说明书入口收进弹窗。
  */
 import { useState } from 'react'
 import { BookOpen, ExternalLink, Info } from 'lucide-react'
@@ -28,42 +28,42 @@ export function PrintGuide() {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <Info className="h-4 w-4" />双面打印指引
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
-          <li>
-            双面打印请选「<b className="text-foreground">短边翻转</b> / 短边装订」——
-            横向页面选「长边翻转」会导致背面颠倒
-          </li>
-          <li>
-            缩放选「<b className="text-foreground">实际大小 100%</b>」，
-            不要再选「每张多页」（排版已完成）
-          </li>
-          <li>纸张方向保持「自动」或横向</li>
-          <li>奇数章补的空白页都落在纸张背面，不浪费正面</li>
-        </ol>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          onClick={() => setOpen(true)}
-        >
+        <p className="text-sm text-muted-foreground">
+          生成结果已按双面打印就绪。打印时选「
+          <b className="text-foreground">短边翻转</b>」+「
+          <b className="text-foreground">实际大小 100%</b>」即可。
+        </p>
+        <Button variant="outline" size="sm" className="w-full" onClick={() => setOpen(true)}>
           <BookOpen className="mr-1 h-4 w-4" />
-          各品牌打印机双面打印说明
+          详细说明与各品牌官方手册
         </Button>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle className="text-base">常见打印机双面打印说明</DialogTitle>
+              <DialogTitle className="text-base">双面打印详细说明</DialogTitle>
               <DialogDescription>
-                不同品牌 / 机型的选项位置略有差异，通用路径如下；点击品牌可直达官方说明书与支持页。
+                排版已完成，只需在打印对话框里选对两项设置；不同品牌入口见下方官方链接。
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-3">
+            <div className="space-y-4">
+              <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
+                <li>
+                  双面打印请选「<b className="text-foreground">短边翻转</b> / 短边装订」——
+                  横向页面选「长边翻转」会导致背面颠倒
+                </li>
+                <li>
+                  缩放选「<b className="text-foreground">实际大小 100%</b>」，
+                  不要再选「每张多页」（排版已完成）
+                </li>
+                <li>纸张方向保持「自动」或横向</li>
+                <li>奇数章补的空白页都落在纸张背面，不浪费正面</li>
+              </ol>
               <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
                 <p className="mb-1 font-medium text-foreground">Windows 通用路径</p>
                 <p>
@@ -78,6 +78,7 @@ export function PrintGuide() {
                 </p>
               </div>
               <div className="space-y-1.5">
+                <p className="text-sm font-medium">各品牌官方说明书 / 支持页</p>
                 {BRAND_LINKS.map((item) => (
                   <a
                     key={item.brand}

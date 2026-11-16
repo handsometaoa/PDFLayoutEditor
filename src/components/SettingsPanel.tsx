@@ -1,10 +1,11 @@
 /**
- * 排版设置（分类卡片）：
- * 「版面布局」排版模式/纸张方向/输出纸张/边距间距/自动旋转；
- * 「打印设置」打印方式、奇数章补空白页（仅双面显示）；
- * 「输出内容」输出方式、页面序号、水印。
+ * 打印设置（渐进式披露）：
+ * 核心仅两项决策——排版模式、打印方式（双面/单面）；
+ * 其余进阶项（方向、纸张、边距间距、旋转、输出方式、页码、水印）
+ * 收进默认折叠的「高级选项」。
  */
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -71,25 +72,18 @@ function SwitchRow({
   )
 }
 
-function CategoryCard({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm text-muted-foreground">{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4 pt-0">{children}</CardContent>
-    </Card>
-  )
-}
-
 export function SettingsPanel() {
   const settings = useStudio((s) => s.settings)
   const setSettings = useStudio((s) => s.setSettings)
-  const duplex = settings.printMode === 'duplex'
+  const [advancedOpen, setAdvancedOpen] = useState(false)
 
   return (
-    <div className="space-y-4">
-      <CategoryCard title="版面布局">
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">打印设置</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* 核心决策 */}
         <Row label="排版模式" hint="每张纸放置的页面数">
           <Segmented
             value={settings.mode}
@@ -101,63 +95,7 @@ export function SettingsPanel() {
             ]}
           />
         </Row>
-        <Row label="纸张方向" hint="整体旋转排版">
-          <Segmented
-            value={settings.orientation}
-            onChange={(v) => setSettings({ orientation: v })}
-            options={[
-              { value: 'auto', label: '自动' },
-              { value: 'landscape', label: '横向' },
-              { value: 'portrait', label: '纵向' },
-            ]}
-          />
-        </Row>
-        <Row label="输出纸张" hint={settings.sheetSource === 'a4' ? '标准 A4' : '按第一章首页比例'}>
-          <Segmented
-            value={settings.sheetSource}
-            onChange={(v) => setSettings({ sheetSource: v })}
-            options={[
-              { value: 'a4', label: 'A4' },
-              { value: 'source', label: '跟随源比例' },
-            ]}
-          />
-        </Row>
-        <Row label="页面边距" hint={`${settings.margin} pt`}>
-          <Slider
-            min={0}
-            max={60}
-            step={2}
-            value={[settings.margin]}
-            onValueChange={(v) => {
-              const next = Array.isArray(v) ? v[0] : v
-              if (typeof next === 'number') setSettings({ margin: next })
-            }}
-          />
-        </Row>
-        {settings.mode !== 1 && (
-          <Row label="格子间距" hint={`${settings.gutter} pt`}>
-            <Slider
-              min={0}
-              max={40}
-              step={2}
-              value={[settings.gutter]}
-              onValueChange={(v) => {
-                const next = Array.isArray(v) ? v[0] : v
-                if (typeof next === 'number') setSettings({ gutter: next })
-              }}
-            />
-          </Row>
-        )}
-        <SwitchRow
-          label="自动旋转页面"
-          hint="页面旋转 90° 以最大化填充格子"
-          checked={settings.autoRotate}
-          onCheckedChange={(v) => setSettings({ autoRotate: v })}
-        />
-      </CategoryCard>
-
-      <CategoryCard title="打印设置">
-        <Row label="打印方式" hint="双面打印时每章从纸张正面开始">
+        <Row label="打印方式" hint="双面时每章自动从纸张正面开始，一张纸不混两章">
           <Segmented
             value={settings.printMode}
             onChange={(v) => setSettings({ printMode: v })}
@@ -167,50 +105,108 @@ export function SettingsPanel() {
             ]}
           />
         </Row>
-        {duplex && (
-          <SwitchRow
-            label="奇数章补空白页"
-            hint="每章从纸张正面开始，一张纸不混两章"
-            checked={settings.padOdd}
-            onCheckedChange={(v) => setSettings({ padOdd: v })}
-          />
-        )}
-      </CategoryCard>
 
-      <CategoryCard title="输出内容">
-        <Row
-          label="输出方式"
-          hint={settings.outputMode === 'merge' ? '所有章节合成一个 PDF' : '每章单独输出一个 PDF'}
-        >
-          <Segmented
-            value={settings.outputMode}
-            onChange={(v) => setSettings({ outputMode: v })}
-            options={[
-              { value: 'merge', label: '合并' },
-              { value: 'split', label: '不合并' },
-            ]}
-          />
-        </Row>
-        <SwitchRow
-          label="页面序号"
-          hint="每格右下角标注章节内页码"
-          checked={settings.pageNumbers}
-          onCheckedChange={(v) => setSettings({ pageNumbers: v })}
-        />
-        <SwitchRow
-          label="水印"
-          hint="整页斜向半透明文字水印"
-          checked={settings.watermarkEnabled}
-          onCheckedChange={(v) => setSettings({ watermarkEnabled: v })}
-        />
-        {settings.watermarkEnabled && (
-          <Input
-            value={settings.watermarkText}
-            placeholder="水印文字，例：仅供个人学习"
-            onChange={(e) => setSettings({ watermarkText: e.target.value })}
-          />
-        )}
-      </CategoryCard>
-    </div>
+        {/* 高级选项（默认折叠） */}
+        <div className="border-t pt-2">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between rounded-md px-1 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            onClick={() => setAdvancedOpen((v) => !v)}
+          >
+            <span>高级选项</span>
+            <ChevronDown className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {advancedOpen && (
+            <div className="mt-2 space-y-4">
+              <Row label="纸张方向" hint="整体旋转排版">
+                <Segmented
+                  value={settings.orientation}
+                  onChange={(v) => setSettings({ orientation: v })}
+                  options={[
+                    { value: 'auto', label: '自动' },
+                    { value: 'landscape', label: '横向' },
+                    { value: 'portrait', label: '纵向' },
+                  ]}
+                />
+              </Row>
+              <Row label="输出纸张" hint={settings.sheetSource === 'a4' ? '标准 A4' : '按第一章首页比例'}>
+                <Segmented
+                  value={settings.sheetSource}
+                  onChange={(v) => setSettings({ sheetSource: v })}
+                  options={[
+                    { value: 'a4', label: 'A4' },
+                    { value: 'source', label: '跟随源比例' },
+                  ]}
+                />
+              </Row>
+              <Row label="页面边距" hint={`${settings.margin} pt`}>
+                <Slider
+                  min={0}
+                  max={60}
+                  step={2}
+                  value={[settings.margin]}
+                  onValueChange={(v) => {
+                    const next = Array.isArray(v) ? v[0] : v
+                    if (typeof next === 'number') setSettings({ margin: next })
+                  }}
+                />
+              </Row>
+              {settings.mode !== 1 && (
+                <Row label="格子间距" hint={`${settings.gutter} pt`}>
+                  <Slider
+                    min={0}
+                    max={40}
+                    step={2}
+                    value={[settings.gutter]}
+                    onValueChange={(v) => {
+                      const next = Array.isArray(v) ? v[0] : v
+                      if (typeof next === 'number') setSettings({ gutter: next })
+                    }}
+                  />
+                </Row>
+              )}
+              <SwitchRow
+                label="自动旋转页面"
+                hint="页面旋转 90° 以最大化填充格子"
+                checked={settings.autoRotate}
+                onCheckedChange={(v) => setSettings({ autoRotate: v })}
+              />
+              <Row
+                label="输出方式"
+                hint={settings.outputMode === 'merge' ? '所有章节合成一个 PDF' : '每章单独输出一个 PDF'}
+              >
+                <Segmented
+                  value={settings.outputMode}
+                  onChange={(v) => setSettings({ outputMode: v })}
+                  options={[
+                    { value: 'merge', label: '合并' },
+                    { value: 'split', label: '不合并' },
+                  ]}
+                />
+              </Row>
+              <SwitchRow
+                label="页面序号"
+                hint="每格右下角标注章节内页码"
+                checked={settings.pageNumbers}
+                onCheckedChange={(v) => setSettings({ pageNumbers: v })}
+              />
+              <SwitchRow
+                label="水印"
+                hint="整页斜向半透明文字水印"
+                checked={settings.watermarkEnabled}
+                onCheckedChange={(v) => setSettings({ watermarkEnabled: v })}
+              />
+              {settings.watermarkEnabled && (
+                <Input
+                  value={settings.watermarkText}
+                  placeholder="水印文字，例：仅供个人学习"
+                  onChange={(e) => setSettings({ watermarkText: e.target.value })}
+                />
+              )}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
