@@ -1,8 +1,28 @@
 # PDF 打印排版工作台
 
+[![CI](https://github.com/handsometaoa/PDFLayoutEditor/actions/workflows/ci.yml/badge.svg)](https://github.com/handsometaoa/PDFLayoutEditor/actions/workflows/ci.yml)
+
 浏览器本地 PDF 打印排版工具：把多份 PDF 课件按「单页 / 2合1 / 4合1」排到打印纸上，支持章节合并、页面排序与删除、奇数章补空白页，一键生成双面打印就绪的 PDF。
 
 **全程在浏览器本地处理，文件不会上传到任何服务器。**
+
+## 截图预览
+
+| 主界面（即时排版预览 + 分类设置） | 成品预览（页码 + 水印） |
+|---|---|
+| ![主界面](docs/screenshots/main.png) | ![成品预览](docs/screenshots/preview.png) |
+
+| 页面管理（删除 / 拖拽排序 / 自动递补） |
+|---|
+| ![页面管理](docs/screenshots/pages.png) |
+
+## 在线使用
+
+推送 `main` 分支后，GitHub Actions 会自动构建并部署到 GitHub Pages：
+
+**https://handsometaoa.github.io/PDFLayoutEditor/**
+
+（首次部署需等 Actions 运行完成；也可在仓库 Actions 页面手动触发「Deploy to GitHub Pages」。）
 
 ## 功能特性
 
