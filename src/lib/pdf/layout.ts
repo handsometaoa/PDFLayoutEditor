@@ -151,8 +151,16 @@ export interface SheetOptions {
 
 /** 按设置推算输出纸张尺寸（方向自动时对全部有效页面取最优）——生成与即时预览共用 */
 export function computeSheet(pageSizes: Size[], opts: SheetOptions, sourceFirstPage?: Size): Size {
-  // 小册子的纸张形状与 2 格横排一致（对折后每半张为一页）
+  // 小册子的纸张形状与 2 格横排一致（对折后每半张为一页），
+  // 且必须横向纸张（两页左右并排、竖向折线）——忽略方向设置
   const sheetMode: NupMode = opts.mode === 'booklet' ? 2 : opts.mode
+  if (opts.mode === 'booklet') {
+    let landscapeSheet = A4_LANDSCAPE
+    if (opts.sheetSource === 'source' && sourceFirstPage) {
+      landscapeSheet = sheetFromSourceSize(sourceFirstPage, 'landscape')
+    }
+    return landscapeSheet
+  }
   let landscapeSheet = A4_LANDSCAPE
   if (opts.sheetSource === 'source' && sourceFirstPage) {
     landscapeSheet = sheetFromSourceSize(sourceFirstPage, 'landscape')

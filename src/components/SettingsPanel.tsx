@@ -134,17 +134,19 @@ export function SettingsPanel() {
           </button>
           {advancedOpen && (
             <div className="mt-2 space-y-4">
-              <Row label="纸张方向" hint="整体旋转排版">
-                <Segmented
-                  value={settings.orientation}
-                  onChange={(v) => setSettings({ orientation: v })}
-                  options={[
-                    { value: 'auto', label: '自动' },
-                    { value: 'landscape', label: '横向' },
-                    { value: 'portrait', label: '纵向' },
-                  ]}
-                />
-              </Row>
+              {settings.mode !== 'booklet' && (
+                <Row label="纸张方向" hint="整体旋转排版">
+                  <Segmented
+                    value={settings.orientation}
+                    onChange={(v) => setSettings({ orientation: v })}
+                    options={[
+                      { value: 'auto', label: '自动' },
+                      { value: 'landscape', label: '横向' },
+                      { value: 'portrait', label: '纵向' },
+                    ]}
+                  />
+                </Row>
+              )}
               <Row label="输出纸张" hint={settings.sheetSource === 'a4' ? '标准 A4' : '按第一章首页比例'}>
                 <Segmented
                   value={settings.sheetSource}
