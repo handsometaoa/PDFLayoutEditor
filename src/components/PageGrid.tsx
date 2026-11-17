@@ -17,7 +17,7 @@ import {
   rectSortingStrategy,
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable'
-import { Eraser, Redo2, Scissors, Undo2 } from 'lucide-react'
+import { Eraser, Scissors, Undo2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,7 +30,6 @@ import { PageViewerDialog } from './PageViewerDialog'
 
 export function PageGrid({ record }: { record: PdfFileRecord }) {
   const reorderPages = useStudio((s) => s.reorderPages)
-  const rotatePage = useStudio((s) => s.rotatePage)
   const applyPageRange = useStudio((s) => s.applyPageRange)
   const markPagesDeleted = useStudio((s) => s.markPagesDeleted)
   const setPageCrops = useStudio((s) => s.setPageCrops)
@@ -130,19 +129,6 @@ export function PageGrid({ record }: { record: PdfFileRecord }) {
           <Eraser className="mr-1 h-3.5 w-3.5" />
           {scanning ? `检测中 ${scanning.current}/${scanning.total}` : '检测空白页'}
         </Button>
-        <Input
-          value={rangeText}
-          onChange={(e) => setRangeText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') applyRange()
-          }}
-          placeholder="页码范围 1-20, 25"
-          className="h-7 w-44 text-xs"
-        />
-        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={applyRange}>
-          <Redo2 className="mr-1 h-3.5 w-3.5" />
-          应用范围
-        </Button>
         <Button
           variant="outline"
           size="sm"
@@ -167,15 +153,41 @@ export function PageGrid({ record }: { record: PdfFileRecord }) {
             撤销
           </Button>
         )}
-        <span className="text-xs text-muted-foreground">
-          将排版 <b className="text-foreground tabular-nums">{keptCount}</b> / {record.pageCount} 页
+        <div className="flex items-center gap-1">
+          <Input
+            value={rangeText}
+            onChange={(e) => setRangeText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') applyRange()
+            }}
+            placeholder="页码范围 1-20, 25（清空 = 全部保留）"
+            className="h-7 w-48 text-xs"
+          />
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={applyRange}>
+            应用
+          </Button>
           {record.deletedPages.length > 0 && (
-            <span className="text-destructive"> · 已删 {record.deletedPages.length}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              title="恢复全部页面"
+              onClick={() => {
+                applyPageRange(record.id, '')
+                toast.success('已恢复全部页面')
+              }}
+            >
+              <Undo2 className="mr-1 h-3.5 w-3.5" />
+              全部保留
+            </Button>
           )}
-          {Object.keys(record.pageRotations ?? {}).length > 0 && (
-            <span> · 已旋转 {Object.keys(record.pageRotations ?? {}).length} 页</span>
+        </div>
+        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+          {keptCount}/{record.pageCount} 页
+          {record.deletedPages.length > 0 && (
+            <span className="text-destructive"> · 删 {record.deletedPages.length}</span>
           )}
-          {hasCrops && <span> · 已裁边 {hasCrops ? Object.keys(record.pageCrops ?? {}).length : 0} 页</span>}
+          {hasCrops && <span> · 裁 {Object.keys(record.pageCrops ?? {}).length} 页</span>}
         </span>
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
@@ -190,9 +202,7 @@ export function PageGrid({ record }: { record: PdfFileRecord }) {
                   record={record}
                   pageIndex={originalIndex}
                   displayNumber={display}
-                  rotated={record.pageRotations?.[originalIndex] ?? 0}
                   onOpen={() => setViewerPos(orderPos)}
-                  onRotate={() => rotatePage(record.id, originalIndex)}
                 />
               )
             })}

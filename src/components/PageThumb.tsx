@@ -1,10 +1,9 @@
 /**
  * 单页缩略图 = ①页面处理操作单元：
- * 点击打开放大预览（可删除/恢复），拖拽排序，↻ 旋转。
+ * 点击打开放大预览（左右切换、删除/恢复），拖拽排序。
  * 徽标显示删除后自动递补的新页码，tooltip 显示原始页号。
  */
 import { useSortable } from '@dnd-kit/sortable'
-import { Redo2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { pageVisualSize } from '@/store'
@@ -16,17 +15,14 @@ interface PageThumbProps {
   pageIndex: number
   /** 删除后递补的显示页码；null 表示该页已被删除 */
   displayNumber: number | null
-  /** 用户附加旋转角度（顺时针，90 的倍数） */
-  rotated: number
   onOpen: () => void
-  onRotate: () => void
 }
 
-export function PageThumb({ record, pageIndex, displayNumber, rotated, onOpen, onRotate }: PageThumbProps) {
+export function PageThumb({ record, pageIndex, displayNumber, onOpen }: PageThumbProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: pageIndex,
   })
-  // 展示纵横比含用户附加旋转（最终成品即此方向）
+  // 展示纵横比含裁白边（最终成品即此比例）
   const visual = pageVisualSize(record, pageIndex)
   const aspect = visual.height > 0 ? `${visual.width} / ${visual.height}` : '3 / 4'
   const deleted = displayNumber === null
@@ -43,7 +39,7 @@ export function PageThumb({ record, pageIndex, displayNumber, rotated, onOpen, o
         title={
           deleted
             ? `原始第 ${pageIndex + 1} 页（已删除）— 点击放大预览/恢复`
-            : `原始第 ${pageIndex + 1} 页 — 点击放大预览（拖动排序，↻ 旋转）`
+            : `原始第 ${pageIndex + 1} 页 — 点击放大预览（拖动排序）`
         }
         {...attributes}
         {...listeners}
@@ -63,22 +59,6 @@ export function PageThumb({ record, pageIndex, displayNumber, rotated, onOpen, o
           <Badge variant="secondary" className="text-[10px] tabular-nums">{displayNumber}</Badge>
         )}
       </div>
-      {!deleted && (
-        <button
-          type="button"
-          title={`旋转 90°（当前 ${rotated}°）`}
-          onClick={(e) => {
-            e.stopPropagation()
-            onRotate()
-          }}
-          className={cn(
-            'absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full border bg-white/90 text-muted-foreground shadow-sm transition-colors hover:text-foreground',
-            rotated > 0 && 'border-primary/50 text-primary',
-          )}
-        >
-          <Redo2 className="h-3 w-3" />
-        </button>
-      )}
     </div>
   )
 }

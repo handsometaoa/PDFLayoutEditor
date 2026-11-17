@@ -14,7 +14,6 @@ export interface ProcessRequest {
     bytes: ArrayBuffer
     /** 版面序列：源页索引（-1 = 空白槽位） */
     sequence: number[]
-    pageRotations?: Record<number, number>
     /** 裁白边（源页索引 -> 裁剪框比例） */
     pageCrops?: Record<number, CropFrac>
     /** 每个槽位的逻辑页号（-1 = 空白槽位） */
@@ -54,7 +53,6 @@ self.addEventListener('message', async (event: MessageEvent<ProcessRequest>) => 
       name: c.name,
       bytes: new Uint8Array(c.bytes),
       sequence: c.sequence,
-      pageRotations: c.pageRotations,
       pageCrops: c.pageCrops,
       pageLabels: c.pageLabels,
     }))

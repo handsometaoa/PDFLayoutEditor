@@ -71,7 +71,6 @@ export function GenerateSection({ onPreview }: GenerateSectionProps) {
           bytes: await f.file.arrayBuffer(),
           sequence,
           pageLabels,
-          pageRotations: f.pageRotations,
           pageCrops: f.pageCrops,
         })
       }

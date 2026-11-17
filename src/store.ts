@@ -24,8 +24,6 @@ export interface PdfFileRecord {
   deletedPages: number[]
   /** 页面展示顺序（源页索引排列）；undefined = 自然顺序 */
   pageOrder?: number[]
-  /** 用户附加旋转（源页索引 -> 额外顺时针角度，90 的倍数） */
-  pageRotations?: Record<number, number>
   /** 裁白边（源页索引 -> 裁剪框比例，raw 用户空间） */
   pageCrops?: Record<number, CropFrac>
   /** 每页未裁剪原始尺寸（raw 用户空间） */
@@ -100,7 +98,6 @@ interface StudioState {
   toggleExpand: (id: string) => void
   togglePageDeleted: (fileId: string, pageIndex: number) => void
   /** 单页旋转：每次顺时针 +90°（0 → 90 → 180 → 270 → 0） */
-  rotatePage: (fileId: string, pageIndex: number) => void
   /** 应用页码范围：重设保留页（清空原删除标记）；返回是否成功 */
   applyPageRange: (fileId: string, text: string) => boolean
   /** 批量标记删除（空白页检测结果），返回合并后的删除总数 */
@@ -129,17 +126,13 @@ export function keptPageIndices(record: PdfFileRecord): number[] {
   return pageOrderOf(record).filter((i) => !deleted.has(i))
 }
 
-/** 某页的视觉尺寸（含裁白边与用户附加旋转） */
+/** 某页的视觉尺寸（含裁白边） */
 export function pageVisualSize(record: PdfFileRecord, pageIndex: number): Size {
   const fallback = record.pages[pageIndex] ?? { width: 595.28, height: 841.89 }
-  const extra = record.pageRotations?.[pageIndex] ?? 0
   const raw = record.raws?.[pageIndex]
-  if (!raw) {
-    // 无原始尺寸信息（历史状态）时按附加旋转近似
-    return extra % 180 === 90 ? { width: fallback.height, height: fallback.width } : fallback
-  }
+  if (!raw) return fallback
   const baseRot = record.baseRotations?.[pageIndex] ?? 0
-  return croppedVisualSize(raw, baseRot, record.pageCrops?.[pageIndex], extra)
+  return croppedVisualSize(raw, baseRot, record.pageCrops?.[pageIndex])
 }
 
 /** 保留页的视觉尺寸序列（供纸张方向计算与即时预览） */
@@ -238,22 +231,22 @@ export const useStudio = create<StudioState>()((set, get) => ({
       }),
     })),
 
-  rotatePage: (fileId, pageIndex) =>
-    set((state) => ({
-      files: state.files.map((f) => {
-        if (f.id !== fileId) return f
-        const rot = { ...(f.pageRotations ?? {}) }
-        rot[pageIndex] = ((rot[pageIndex] ?? 0) + 90) % 360
-        return { ...f, pageRotations: rot }
-      }),
-    })),
-
   applyPageRange: (fileId, text) => {
+    const w = window as unknown as { __rangeLog?: string[] };
+    w.__rangeLog = w.__rangeLog ?? [];
+    w.__rangeLog.push(`apply fileId=${fileId} text="${text}"`);
     const record = get().files.find((f) => f.id === fileId)
-    if (!record) return false
-    const kept = parsePageRange(text, record.pageCount)
+    if (!record) {
+      w.__rangeLog.push("record NOT FOUND");
+      return false;
+    }
+    // 清空输入并应用 = 恢复全部页面
+    const kept = text.trim() === ''
+      ? Array.from({ length: record.pageCount }, (_, i) => i)
+      : parsePageRange(text, record.pageCount)
     if (!kept) return false
     const keptSet = new Set(kept)
+    w.__rangeLog.push(`kept=${kept.length}`);
     set((state) => ({
       files: state.files.map((f) =>
         f.id === fileId

@@ -4,7 +4,7 @@
  * 删除/恢复与缩略图网格共用同一状态，实时联动。
  */
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Redo2, Trash2, Undo2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Trash2, Undo2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -32,12 +32,10 @@ export function PageViewerDialog({ record, pos, onPos, onClose }: PageViewerDial
   const safePos = Math.min(Math.max(pos, 0), order.length - 1)
   const pageIndex = order[safePos] ?? 0
   const deleted = record.deletedPages.includes(pageIndex)
-  const rotated = record.pageRotations?.[pageIndex] ?? 0
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [err, setErr] = useState<string | null>(null)
 
   const togglePageDeleted = useStudio((s) => s.togglePageDeleted)
-  const rotatePage = useStudio((s) => s.rotatePage)
 
   // 递补页码：此前（含自身）保留页计数
   const deletedSet = new Set(record.deletedPages)
@@ -109,12 +107,6 @@ export function PageViewerDialog({ record, pos, onPos, onClose }: PageViewerDial
             ) : (
               <Badge variant="secondary">排版序号 {displayNumber}</Badge>
             )}
-            {rotated > 0 && (
-              <Badge variant="outline" className="gap-1">
-                <Redo2 className="h-3 w-3" />
-                已旋转 {rotated}°
-              </Badge>
-            )}
           </DialogTitle>
           <DialogDescription>
             ← / → 切换页面，Delete 键删除或恢复；删除只作标记，页码自动递补
@@ -155,14 +147,6 @@ export function PageViewerDialog({ record, pos, onPos, onClose }: PageViewerDial
                   <Trash2 className="mr-1 h-4 w-4" />删除此页
                 </>
               )}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              title={`旋转 90°（当前 ${rotated}°）`}
-              onClick={() => rotatePage(record.id, pageIndex)}
-            >
-              <Redo2 className="h-4 w-4" />
             </Button>
             <Button
               variant="outline"

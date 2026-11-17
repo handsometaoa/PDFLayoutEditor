@@ -17,8 +17,6 @@ export interface ChapterSpec {
   bytes: Uint8Array
   /** 版面序列：源页索引按输出槽位顺序排列；-1 = 空白槽位（小册子补位） */
   sequence: number[]
-  /** 用户附加旋转（源页索引 -> 额外顺时针角度） */
-  pageRotations?: Record<number, number>
   /** 裁白边（源页索引 -> 裁剪框比例，raw 用户空间） */
   pageCrops?: Record<number, CropFrac>
   /** 每个槽位的逻辑页号（小册子折叠后阅读页码；-1 = 空白）。缺省用槽位序号 */
@@ -94,7 +92,6 @@ async function imposeChapter(
   /** 版面序列：源页索引（-1 = 空白槽位） */
   sequence: number[],
   pageMap: Map<number, import('pdf-lib').PDFPage>,
-  pageRotations: Record<number, number> | undefined,
   pageCrops: Record<number, CropFrac> | undefined,
   pageLabels: number[] | undefined,
   mode: LayoutMode,
@@ -130,8 +127,7 @@ async function imposeChapter(
       const rawWidth = boundingBox.right - boundingBox.left
       const rawHeight = boundingBox.top - boundingBox.bottom
       const embedded = await out.embedPage(srcPage, boundingBox)
-      // 用户附加旋转叠加在查看器旋转之上（两者均为顺时针语义）
-      const totalRotation = srcPage.getRotation().angle + (pageRotations?.[slot] ?? 0)
+      const totalRotation = srcPage.getRotation().angle
       // 小册子固定左右并排（折叠方向），不自动旋转页面
       const { options, box } = placePage(rawWidth, rawHeight, totalRotation, cells[k]!, autoRotate)
       sheetPage.drawPage(embedded, { ...options, rotate: degrees(options.rotate) })
@@ -234,7 +230,6 @@ export async function buildOutput(
       out,
       chapter.sequence,
       pageMap,
-      chapter.pageRotations,
       chapter.pageCrops,
       chapter.pageLabels,
       settings.mode,

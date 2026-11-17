@@ -133,17 +133,17 @@ describe('bookletPageOrder', () => {
 
 describe('croppedVisualSize', () => {
   it('按比例裁剪内容区域', () => {
-    expect(croppedVisualSize({ width: 800, height: 600 }, 0, { x0: 0.1, y0: 0.1, x1: 0.9, y1: 0.9 }, 0)).toEqual({
+    expect(croppedVisualSize({ width: 800, height: 600 }, 0, { x0: 0.1, y0: 0.1, x1: 0.9, y1: 0.9 })).toEqual({
       width: 640,
       height: 480,
     })
   })
 
   it('查看器旋转 90° 时交换宽高', () => {
-    expect(croppedVisualSize({ width: 800, height: 600 }, 90, undefined, 0)).toEqual({ width: 600, height: 800 })
+    expect(croppedVisualSize({ width: 800, height: 600 }, 90, undefined)).toEqual({ width: 600, height: 800 })
   })
 
-  it('用户附加旋转叠加', () => {
-    expect(croppedVisualSize({ width: 800, height: 600 }, 0, undefined, 90)).toEqual({ width: 600, height: 800 })
+  it('无裁剪时保持原尺寸', () => {
+    expect(croppedVisualSize({ width: 800, height: 600 }, 0, undefined)).toEqual({ width: 800, height: 600 })
   })
 })

@@ -169,18 +169,13 @@ export interface CropFrac {
   y1: number
 }
 
-/** 裁剪后的视觉尺寸（原始尺寸 × 裁剪比例，再按总旋转角交换宽高） */
-export function croppedVisualSize(
-  raw: Size,
-  baseRotation: number,
-  frac: CropFrac | undefined,
-  extraRotation: number,
-): Size {
+/** 裁剪后的视觉尺寸（原始尺寸 × 裁剪比例，再按查看器旋转角交换宽高） */
+export function croppedVisualSize(raw: Size, baseRotation: number, frac: CropFrac | undefined): Size {
   const x0 = frac?.x0 ?? 0
   const y0 = frac?.y0 ?? 0
   const x1 = frac?.x1 ?? 1
   const y1 = frac?.y1 ?? 1
-  return visualSize(raw.width * (x1 - x0), raw.height * (y1 - y0), baseRotation + extraRotation)
+  return visualSize(raw.width * (x1 - x0), raw.height * (y1 - y0), baseRotation)
 }
 
 /**
