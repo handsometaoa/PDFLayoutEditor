@@ -1,6 +1,6 @@
 /**
  * 单页缩略图 = ①页面处理操作单元：
- * 可拖拽排序（dnd-kit 网格）、点击删除/恢复、旋转按钮（↻ 顺时针 90°）。
+ * 点击打开放大预览（可删除/恢复），拖拽排序，↻ 旋转。
  * 徽标显示删除后自动递补的新页码，tooltip 显示原始页号。
  */
 import { useSortable } from '@dnd-kit/sortable'
@@ -18,11 +18,11 @@ interface PageThumbProps {
   displayNumber: number | null
   /** 用户附加旋转角度（顺时针，90 的倍数） */
   rotated: number
-  onToggle: () => void
+  onOpen: () => void
   onRotate: () => void
 }
 
-export function PageThumb({ record, pageIndex, displayNumber, rotated, onToggle, onRotate }: PageThumbProps) {
+export function PageThumb({ record, pageIndex, displayNumber, rotated, onOpen, onRotate }: PageThumbProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: pageIndex,
   })
@@ -39,11 +39,11 @@ export function PageThumb({ record, pageIndex, displayNumber, rotated, onToggle,
     <div ref={setNodeRef} style={style} className={cn('relative', isDragging && 'z-10 opacity-80')}>
       <button
         type="button"
-        onClick={onToggle}
+        onClick={onOpen}
         title={
           deleted
-            ? `原始第 ${pageIndex + 1} 页（已删除）— 点击恢复`
-            : `原始第 ${pageIndex + 1} 页 — 点击删除（拖动排序，↻ 旋转）`
+            ? `原始第 ${pageIndex + 1} 页（已删除）— 点击放大预览/恢复`
+            : `原始第 ${pageIndex + 1} 页 — 点击放大预览（拖动排序，↻ 旋转）`
         }
         {...attributes}
         {...listeners}

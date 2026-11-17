@@ -26,9 +26,9 @@ import { useStudio } from '@/store'
 import { pageOrderOf } from '@/store'
 import type { PdfFileRecord } from '@/store'
 import { PageThumb } from './PageThumb'
+import { PageViewerDialog } from './PageViewerDialog'
 
 export function PageGrid({ record }: { record: PdfFileRecord }) {
-  const togglePageDeleted = useStudio((s) => s.togglePageDeleted)
   const reorderPages = useStudio((s) => s.reorderPages)
   const rotatePage = useStudio((s) => s.rotatePage)
   const applyPageRange = useStudio((s) => s.applyPageRange)
@@ -46,6 +46,7 @@ export function PageGrid({ record }: { record: PdfFileRecord }) {
   const [scanning, setScanning] = useState<{ current: number; total: number } | null>(null)
   const [trimming, setTrimming] = useState<{ current: number; total: number } | null>(null)
   const [rangeText, setRangeText] = useState('')
+  const [viewerPos, setViewerPos] = useState<number | null>(null)
   const hasCrops = Object.keys(record.pageCrops ?? {}).length > 0
 
   const trimMargins = async () => {
@@ -180,7 +181,7 @@ export function PageGrid({ record }: { record: PdfFileRecord }) {
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={order} strategy={rectSortingStrategy}>
           <div className="grid max-h-[420px] grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-2 overflow-y-auto rounded-md border bg-background p-2">
-            {order.map((originalIndex) => {
+            {order.map((originalIndex, orderPos) => {
               const isDeleted = deleted.has(originalIndex)
               const display = isDeleted ? null : ++counter
               return (
@@ -190,7 +191,7 @@ export function PageGrid({ record }: { record: PdfFileRecord }) {
                   pageIndex={originalIndex}
                   displayNumber={display}
                   rotated={record.pageRotations?.[originalIndex] ?? 0}
-                  onToggle={() => togglePageDeleted(record.id, originalIndex)}
+                  onOpen={() => setViewerPos(orderPos)}
                   onRotate={() => rotatePage(record.id, originalIndex)}
                 />
               )
@@ -198,6 +199,14 @@ export function PageGrid({ record }: { record: PdfFileRecord }) {
           </div>
         </SortableContext>
       </DndContext>
+      {viewerPos !== null && (
+        <PageViewerDialog
+          record={record}
+          pos={viewerPos}
+          onPos={setViewerPos}
+          onClose={() => setViewerPos(null)}
+        />
+      )}
     </div>
   )
 }
