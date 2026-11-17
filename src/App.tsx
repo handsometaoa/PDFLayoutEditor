@@ -5,7 +5,6 @@ import { FileList } from '@/components/FileList'
 import { GenerateSection } from '@/components/GenerateSection'
 import { LivePreview } from '@/components/LivePreview'
 import { PreviewDialog } from '@/components/PreviewDialog'
-import { PrintGuide } from '@/components/PrintGuide'
 import { SettingsPanel } from '@/components/SettingsPanel'
 import { UploadZone } from '@/components/UploadZone'
 import type { OutputResult } from '@/store'
@@ -66,7 +65,7 @@ export default function App() {
           <div className="flex-1">
             <h1 className="text-lg font-semibold leading-tight">PDF 打印排版工作台</h1>
             <p className="text-xs text-muted-foreground">
-              单页 / 2合1 / 4合1 · 页面排序与删除 · 合并 / 分章输出 · 页码水印 · 双面打印就绪
+              单页 / 2合1 / 4合1 · 页面排序与删除 · 合并 / 分章输出 · 页码水印
             </p>
           </div>
           <Badge variant="secondary">本地处理 · 文件不出浏览器</Badge>
@@ -89,7 +88,6 @@ export default function App() {
           <GenerateSection
             onPreview={(outputs, index) => setPreview({ outputs, index })}
           />
-          <PrintGuide />
         </aside>
       </main>
       {dragging && (
