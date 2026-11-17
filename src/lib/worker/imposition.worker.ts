@@ -21,6 +21,8 @@ export interface OutputPayload {
   pageCount: number
   sheetCount: number
   chapterStarts: Array<{ name: string; startPage: number }>
+  /** 补的空白页（1-based） */
+  padPages: number[]
 }
 
 export type WorkerOutMessage =
@@ -48,6 +50,7 @@ self.addEventListener('message', async (event: MessageEvent<ProcessRequest>) => 
       pageCount: number
       sheetCount: number
       chapterStarts: Array<{ name: string; startPage: number }>
+      padPages: number[]
     }> = []
     if (split) {
       for (let i = 0; i < specs.length; i++) {
@@ -61,6 +64,7 @@ self.addEventListener('message', async (event: MessageEvent<ProcessRequest>) => 
           pageCount: r.pageCount,
           sheetCount: r.sheetCount,
           chapterStarts: r.chapterStarts,
+          padPages: r.padPages,
         })
       }
     } else {
@@ -73,6 +77,7 @@ self.addEventListener('message', async (event: MessageEvent<ProcessRequest>) => 
         pageCount: r.pageCount,
         sheetCount: r.sheetCount,
         chapterStarts: r.chapterStarts,
+        padPages: r.padPages,
       })
     }
 
@@ -80,7 +85,7 @@ self.addEventListener('message', async (event: MessageEvent<ProcessRequest>) => 
       const b = r.bytes
       // save() 返回的 Uint8Array 可能引用更大的底层缓冲，切片后再转移
       const out = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer
-      return { fileName: r.fileName, bytes: out, pageCount: r.pageCount, sheetCount: r.sheetCount, chapterStarts: r.chapterStarts }
+      return { fileName: r.fileName, bytes: out, pageCount: r.pageCount, sheetCount: r.sheetCount, chapterStarts: r.chapterStarts, padPages: r.padPages }
     })
     post({ type: 'done', outputs }, outputs.map((o) => o.bytes))
   } catch (err) {

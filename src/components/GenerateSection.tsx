@@ -103,7 +103,9 @@ export function GenerateSection({ onPreview }: GenerateSectionProps) {
         url: URL.createObjectURL(new Blob([o.bytes], { type: 'application/pdf' })),
         pageCount: o.pageCount,
         sheetCount: o.sheetCount,
+        sizeMB: Math.round((o.bytes.length / 1e6) * 10) / 10,
         chapterStarts: o.chapterStarts,
+        padPages: o.padPages,
       }))
       patchTask({ status: 'done', result: { outputs } })
       const totalOut = outputs.reduce((s, o) => s + o.pageCount, 0)
@@ -159,7 +161,7 @@ export function GenerateSection({ onPreview }: GenerateSectionProps) {
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate text-sm font-medium" title={o.fileName}>{o.fileName}</span>
                   <Badge variant="secondary" className="shrink-0 tabular-nums">
-                    {o.pageCount} 页 / {o.sheetCount} 张纸
+                    {o.pageCount} 页 / {o.sheetCount} 张纸 · {o.sizeMB} MB
                   </Badge>
                 </div>
                 {outputs.length === 1 && o.chapterStarts.length > 1 && (

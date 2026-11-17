@@ -10,6 +10,8 @@ export interface ImpositionOutput {
   pageCount: number
   sheetCount: number
   chapterStarts: Array<{ name: string; startPage: number }>
+  /** 补的空白页（1-based） */
+  padPages: number[]
 }
 
 export type ProgressCallback = (chapterIndex: number, current: number, total: number) => void
@@ -34,6 +36,7 @@ export function runImposition(
             pageCount: o.pageCount,
             sheetCount: o.sheetCount,
             chapterStarts: o.chapterStarts,
+            padPages: o.padPages,
           })),
         })
       } else {

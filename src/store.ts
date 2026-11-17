@@ -51,7 +51,11 @@ export interface OutputResult {
   url: string
   pageCount: number
   sheetCount: number
+  /** 输出文件大小（MB） */
+  sizeMB: number
   chapterStarts: ChapterStart[]
+  /** 补的空白页（输出页码，1-based） */
+  padPages: number[]
 }
 
 export interface TaskState {
@@ -112,6 +116,27 @@ function nextId(): string {
   return `pdf-${Date.now().toString(36)}-${uid}`
 }
 
+/** 设置持久化：重开页面保留上次选择 */
+const SETTINGS_KEY = 'pdf-print-studio:settings'
+
+function loadSettings(): OutputSettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY)
+    if (raw) return { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<OutputSettings>) }
+  } catch {
+    // 损坏或不可用时回退默认值
+  }
+  return DEFAULT_SETTINGS
+}
+
+function saveSettings(settings: OutputSettings) {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
+  } catch {
+    // 存储不可用时忽略
+  }
+}
+
 async function loadMetaIntoStore(id: string, file: File) {
   try {
     const bytes = new Uint8Array(await file.arrayBuffer())
@@ -133,7 +158,7 @@ async function loadMetaIntoStore(id: string, file: File) {
 
 export const useStudio = create<StudioState>((set) => ({
   files: [],
-  settings: DEFAULT_SETTINGS,
+  settings: loadSettings(),
   task: { status: 'idle', progressCurrent: 0, progressTotal: 0, progressChapter: '' },
 
   addFiles: (incoming) => {
@@ -197,7 +222,12 @@ export const useStudio = create<StudioState>((set) => ({
       return { files }
     }),
 
-  setSettings: (patch) => set((state) => ({ settings: { ...state.settings, ...patch } })),
+  setSettings: (patch) =>
+    set((state) => {
+      const settings = { ...state.settings, ...patch }
+      saveSettings(settings)
+      return { settings }
+    }),
 
   patchTask: (patch) => set((state) => ({ task: { ...state.task, ...patch } })),
 

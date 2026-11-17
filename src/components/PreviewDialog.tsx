@@ -35,6 +35,20 @@ export function PreviewDialog({ open, onOpenChange, outputs, index, onIndexChang
     if (open) setPageNum(1)
   }, [open, index])
 
+  // 键盘翻页：← / →（对话框打开时）
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' && result && pageNum < result.pageCount) {
+        setPageNum((p) => Math.min(result.pageCount, p + 1))
+      } else if (e.key === 'ArrowLeft' && pageNum > 1) {
+        setPageNum((p) => Math.max(1, p - 1))
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, pageNum, result])
+
   // 对话框宽度随窗口变化时重新渲染画布（不依赖容器 ref：Base UI 内容异步挂载，
   // 打开瞬间 ref 可能为 null）
   useEffect(() => {
@@ -85,17 +99,39 @@ export function PreviewDialog({ open, onOpenChange, outputs, index, onIndexChang
     }
   }, [open, pageNum, result, avail])
 
-  const chapterHere = result?.chapterStarts.find((c) => c.startPage === pageNum)
+  const isPadPage = result?.padPages?.includes(pageNum) ?? false
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[min(94vw,1280px)]">
         <DialogHeader>
-          <DialogTitle className="flex flex-wrap items-center gap-2 text-base">
-            成品预览
-            {chapterHere && <Badge variant="secondary">「{chapterHere.name}」从此页开始</Badge>}
-          </DialogTitle>
+          <DialogTitle className="text-base">成品预览</DialogTitle>
         </DialogHeader>
+        {result && result.chapterStarts.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {result.chapterStarts.map((c, i) => {
+              const next = result.chapterStarts[i + 1]?.startPage ?? result.pageCount + 1
+              const active = pageNum >= c.startPage && pageNum < next
+              return (
+                <button
+                  key={c.name}
+                  type="button"
+                  onClick={() => setPageNum(c.startPage)}
+                  title={`跳到第 ${c.startPage} 页`}
+                  className={cn(
+                    'h-7 max-w-[240px] truncate rounded-full border px-3 text-xs transition-colors',
+                    active
+                      ? 'border-primary bg-primary/10 font-medium text-foreground'
+                      : 'text-muted-foreground hover:bg-muted/60',
+                  )}
+                >
+                  {c.name} · P{c.startPage}
+                </button>
+              )
+            })}
+            {isPadPage && <Badge variant="outline">本章末尾补页（空白）</Badge>}
+          </div>
+        )}
         {outputs.length > 1 && (
           <div className="flex flex-wrap gap-1.5">
             {outputs.map((o, i) => (

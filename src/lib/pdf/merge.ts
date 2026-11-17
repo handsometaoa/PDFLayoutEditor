@@ -45,6 +45,8 @@ export interface BuildResult {
   /** 双面打印所需纸张数 */
   sheetCount: number
   chapterStarts: ChapterStart[]
+  /** 补的空白页（输出页码，1-based） */
+  padPages: number[]
 }
 
 export type ProgressFn = (chapterIndex: number, current: number, total: number) => void
@@ -150,6 +152,7 @@ export async function buildOutput(
 
   const out = await PDFDocument.create()
   const deco: Decorations = {}
+  const padPages: number[] = []
   if (settings.pageNumbers) {
     deco.font = await out.embedFont(StandardFonts.Helvetica)
   }
@@ -193,6 +196,7 @@ export async function buildOutput(
     // 奇数章补空白页（含最后一章，使总页数为偶数）
     if (settings.padOdd && out.getPageCount() % 2 !== 0) {
       out.addPage([sheet.width, sheet.height])
+      padPages.push(out.getPageCount())
     }
   }
 
@@ -203,5 +207,6 @@ export async function buildOutput(
     pageCount,
     sheetCount: Math.ceil(pageCount / 2),
     chapterStarts,
+    padPages,
   }
 }
