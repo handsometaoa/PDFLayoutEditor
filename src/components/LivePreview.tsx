@@ -36,8 +36,7 @@ export function LivePreview() {
   const first = readyFiles[0]
   const kept = first ? keptPageIndices(first) : []
   const effectiveSizes = readyFiles.flatMap((f) => keptPageIndices(f).map((i) => pageVisualSize(f, i)))
-  const sourceFirst = first && kept[0] !== undefined ? pageVisualSize(first, kept[0]) : undefined
-  const sheet = computeSheet(effectiveSizes, settings, sourceFirst)
+  const sheet = computeSheet(effectiveSizes, settings)
   const cells = gridCells(sheet.width, sheet.height, settings.mode, settings.margin, settings.gutter)
   // 版面序列：小册子按折叠页序重排（-1 = 空白槽位）
   const sequence =

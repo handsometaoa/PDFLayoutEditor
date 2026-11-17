@@ -133,50 +133,32 @@ export function chooseOrientation(
   return meanAspect < 1 ? 'portrait' : 'landscape'
 }
 
-/** 「跟随源页面比例」时按第一章首页视觉尺寸推导纸张（以宽者为横向边） */
-export function sheetFromSourceSize(source: Size, orientation: Orientation): Size {
-  const w = Math.max(source.width, source.height)
-  const h = Math.min(source.width, source.height)
-  return orientation === 'landscape' ? { width: w, height: h } : { width: h, height: w }
-}
-
 export interface SheetOptions {
   mode: LayoutMode
   orientation: OrientationSetting
-  sheetSource: 'a4' | 'source'
   margin: number
   gutter: number
   autoRotate: boolean
 }
 
-/** 按设置推算输出纸张尺寸（方向自动时对全部有效页面取最优）——生成与即时预览共用 */
-export function computeSheet(pageSizes: Size[], opts: SheetOptions, sourceFirstPage?: Size): Size {
+/** 按设置推算输出纸张尺寸（恒 A4；方向自动时对全部有效页面取最优）——生成与即时预览共用 */
+export function computeSheet(pageSizes: Size[], opts: SheetOptions): Size {
   // 小册子的纸张形状与 2 格横排一致（对折后每半张为一页），
   // 且必须横向纸张（两页左右并排、竖向折线）——忽略方向设置
   const sheetMode: NupMode = opts.mode === 'booklet' ? 2 : opts.mode
-  if (opts.mode === 'booklet') {
-    let landscapeSheet = A4_LANDSCAPE
-    if (opts.sheetSource === 'source' && sourceFirstPage) {
-      landscapeSheet = sheetFromSourceSize(sourceFirstPage, 'landscape')
-    }
-    return landscapeSheet
-  }
-  let landscapeSheet = A4_LANDSCAPE
-  if (opts.sheetSource === 'source' && sourceFirstPage) {
-    landscapeSheet = sheetFromSourceSize(sourceFirstPage, 'landscape')
-  }
+  if (opts.mode === 'booklet') return A4_LANDSCAPE
   const orientation = chooseOrientation(
     pageSizes,
     opts.orientation,
-    landscapeSheet,
+    A4_LANDSCAPE,
     sheetMode,
     opts.margin,
     opts.gutter,
     opts.autoRotate,
   )
   return orientation === 'landscape'
-    ? landscapeSheet
-    : { width: landscapeSheet.height, height: landscapeSheet.width }
+    ? A4_LANDSCAPE
+    : { width: A4_LANDSCAPE.height, height: A4_LANDSCAPE.width }
 }
 
 export interface CropFrac {

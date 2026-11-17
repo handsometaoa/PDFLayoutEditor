@@ -147,16 +147,6 @@ export function SettingsPanel() {
                   />
                 </Row>
               )}
-              <Row label="输出纸张" hint={settings.sheetSource === 'a4' ? '标准 A4' : '按第一章首页比例'}>
-                <Segmented
-                  value={settings.sheetSource}
-                  onChange={(v) => setSettings({ sheetSource: v })}
-                  options={[
-                    { value: 'a4', label: 'A4' },
-                    { value: 'source', label: '跟随源比例' },
-                  ]}
-                />
-              </Row>
               <Row label="页面边距" hint={`${settings.margin} pt`}>
                 <Slider
                   min={0}

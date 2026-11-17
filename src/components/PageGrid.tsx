@@ -21,7 +21,7 @@ import { Eraser, Redo2, Scissors, Undo2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { detectBlankPages } from '@/lib/pdfjs'
+import { detectBlankPages, detectContentCrops } from '@/lib/pdfjs'
 import { useStudio } from '@/store'
 import { pageOrderOf } from '@/store'
 import type { PdfFileRecord } from '@/store'
@@ -57,7 +57,6 @@ export function PageGrid({ record }: { record: PdfFileRecord }) {
     }
     setTrimming({ current: 0, total: record.pageCount })
     try {
-      const { detectContentCrops } = await import('@/lib/pdfjs')
       const bytes = new Uint8Array(await record.file.arrayBuffer())
       const crops = await detectContentCrops(bytes, record.pageCount, (current, total) =>
         setTrimming({ current, total }),

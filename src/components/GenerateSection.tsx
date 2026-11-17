@@ -48,10 +48,7 @@ export function GenerateSection({ onPreview }: GenerateSectionProps) {
     try {
       const split = settings.outputMode === 'split'
       const effectiveSizes = readyFiles.flatMap((f) => keptVisualSizes(f))
-      const firstKept = keptPageIndices(readyFiles[0]!)[0]
-      const sourceFirst =
-        firstKept !== undefined ? readyFiles[0]!.pages[firstKept] : undefined
-      const sheet = computeSheet(effectiveSizes, settings, sourceFirst)
+      const sheet = computeSheet(effectiveSizes, settings)
 
       patchTask({ status: 'processing', progressCurrent: 0, progressTotal: 0, progressChapter: '' })
       const sequenceFor = (f: PdfFileRecord): { sequence: number[]; pageLabels?: number[] } => {
