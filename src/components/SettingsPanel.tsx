@@ -13,9 +13,16 @@ import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { useStudio } from '@/store'
 
+interface SegmentedOption<T> {
+  value: T
+  label: string
+  disabled?: boolean
+  title?: string
+}
+
 interface SegmentedProps<T extends string | number> {
   value: T
-  options: Array<{ value: T; label: string }>
+  options: Array<SegmentedOption<T>>
   onChange: (value: T) => void
 }
 
@@ -29,6 +36,8 @@ function Segmented<T extends string | number>({ value, options, onChange }: Segm
           variant={value === option.value ? 'default' : 'ghost'}
           size="sm"
           className="h-7 flex-1 px-2"
+          disabled={option.disabled}
+          title={option.title}
           onClick={() => onChange(option.value)}
         >
           {option.label}
@@ -90,7 +99,7 @@ export function SettingsPanel() {
         >
           <Segmented
             value={settings.mode}
-            onChange={(v) => setSettings({ mode: v })}
+            onChange={(v) => setSettings({ mode: v, ...(v === 'booklet' ? { printMode: 'duplex' as const } : {}) })}
             options={[
               { value: 1, label: '单页' },
               { value: 2, label: '2合1' },
@@ -99,13 +108,16 @@ export function SettingsPanel() {
             ]}
           />
         </Row>
-        <Row label="打印方式" hint="双面时每章自动从纸张正面开始，一张纸不混两章">
+        <Row
+          label="打印方式"
+          hint={settings.mode === 'booklet' ? '小册子需双面打印后逐张对折装订' : '双面时每章自动从纸张正面开始，一张纸不混两章'}
+        >
           <Segmented
             value={settings.printMode}
             onChange={(v) => setSettings({ printMode: v })}
             options={[
               { value: 'duplex', label: '双面' },
-              { value: 'simplex', label: '单面' },
+              { value: 'simplex', label: '单面', disabled: settings.mode === 'booklet', title: '小册子必须双面打印' },
             ]}
           />
         </Row>
