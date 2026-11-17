@@ -23,6 +23,8 @@ export interface PdfFileRecord {
   deletedPages: number[]
   /** 页面展示顺序（源页索引排列）；undefined = 自然顺序 */
   pageOrder?: number[]
+  /** 用户附加旋转（源页索引 -> 额外顺时针角度，90 的倍数） */
+  pageRotations?: Record<number, number>
   expanded: boolean
 }
 
@@ -90,6 +92,12 @@ interface StudioState {
   removeFile: (id: string) => void
   toggleExpand: (id: string) => void
   togglePageDeleted: (fileId: string, pageIndex: number) => void
+  /** 单页旋转：每次顺时针 +90°（0 → 90 → 180 → 270 → 0） */
+  rotatePage: (fileId: string, pageIndex: number) => void
+  /** 应用页码范围：重设保留页（清空原删除标记）；返回是否成功 */
+  applyPageRange: (fileId: string, text: string) => boolean
+  /** 批量标记删除（空白页检测结果），返回合并后的删除总数 */
+  markPagesDeleted: (fileId: string, pageIndices: number[]) => number
   /** 页面拖拽排序：from/to 为展示顺序中的位置 */
   reorderPages: (fileId: string, from: number, to: number) => void
   moveFile: (fromIndex: number, toIndex: number) => void
@@ -108,6 +116,34 @@ export function pageOrderOf(record: PdfFileRecord): number[] {
 export function keptPageIndices(record: PdfFileRecord): number[] {
   const deleted = new Set(record.deletedPages)
   return pageOrderOf(record).filter((i) => !deleted.has(i))
+}
+
+/** 某页的视觉尺寸（含用户附加旋转） */
+export function pageVisualSize(record: PdfFileRecord, pageIndex: number): Size {
+  const base = record.pages[pageIndex] ?? { width: 595.28, height: 841.89 }
+  const extra = record.pageRotations?.[pageIndex] ?? 0
+  if (extra % 180 === 90) return { width: base.height, height: base.width }
+  return base
+}
+
+/** 保留页的视觉尺寸序列（供纸张方向计算与即时预览） */
+export function keptVisualSizes(record: PdfFileRecord): Size[] {
+  return keptPageIndices(record).map((i) => pageVisualSize(record, i))
+}
+
+/** 解析页码范围文本（如 "1-20, 25"）为保留页索引；格式非法返回 null */
+export function parsePageRange(text: string, pageCount: number): number[] | null {
+  const kept = new Set<number>()
+  for (const part of text.trim().split(/[,，\s]+/).filter(Boolean)) {
+    const m = part.match(/^(\d+)(?:-(\d+))?$/)
+    if (!m) return null
+    let a = Number(m[1])
+    let b = m[2] ? Number(m[2]) : a
+    if (a > b) [a, b] = [b, a]
+    if (a < 1 || b > pageCount) return null
+    for (let i = a; i <= b; i++) kept.add(i - 1)
+  }
+  return kept.size === 0 ? null : [...kept].sort((x, y) => x - y)
 }
 
 let uid = 0
@@ -137,26 +173,7 @@ function saveSettings(settings: OutputSettings) {
   }
 }
 
-async function loadMetaIntoStore(id: string, file: File) {
-  try {
-    const bytes = new Uint8Array(await file.arrayBuffer())
-    const meta = await loadPdfMeta(bytes)
-    useStudio.setState((state) => ({
-      files: state.files.map((f) =>
-        f.id === id ? { ...f, status: 'ready', pageCount: meta.pageCount, pages: meta.pages } : f,
-      ),
-    }))
-  } catch (err) {
-    const kind = err instanceof PdfLoadError ? err.kind : 'invalid'
-    useStudio.setState((state) => ({
-      files: state.files.map((f) =>
-        f.id === id ? { ...f, status: 'error', errorKind: kind } : f,
-      ),
-    }))
-  }
-}
-
-export const useStudio = create<StudioState>((set) => ({
+export const useStudio = create<StudioState>()((set, get) => ({
   files: [],
   settings: loadSettings(),
   task: { status: 'idle', progressCurrent: 0, progressTotal: 0, progressChapter: '' },
@@ -203,6 +220,48 @@ export const useStudio = create<StudioState>((set) => ({
       }),
     })),
 
+  rotatePage: (fileId, pageIndex) =>
+    set((state) => ({
+      files: state.files.map((f) => {
+        if (f.id !== fileId) return f
+        const rot = { ...(f.pageRotations ?? {}) }
+        rot[pageIndex] = ((rot[pageIndex] ?? 0) + 90) % 360
+        return { ...f, pageRotations: rot }
+      }),
+    })),
+
+  applyPageRange: (fileId, text) => {
+    const record = get().files.find((f) => f.id === fileId)
+    if (!record) return false
+    const kept = parsePageRange(text, record.pageCount)
+    if (!kept) return false
+    const keptSet = new Set(kept)
+    set((state) => ({
+      files: state.files.map((f) =>
+        f.id === fileId
+          ? {
+              ...f,
+              deletedPages: Array.from({ length: f.pageCount }, (_, i) => i).filter(
+                (i) => !keptSet.has(i),
+              ),
+            }
+          : f,
+      ),
+    }))
+    return true
+  },
+
+  markPagesDeleted: (fileId, pageIndices) => {
+    set((state) => ({
+      files: state.files.map((f) =>
+        f.id === fileId
+          ? { ...f, deletedPages: [...new Set([...f.deletedPages, ...pageIndices])].sort((a, b) => a - b) }
+          : f,
+      ),
+    }))
+    return get().files.find((f) => f.id === fileId)?.deletedPages.length ?? 0
+  },
+
   reorderPages: (fileId, from, to) =>
     set((state) => ({
       files: state.files.map((f) => {
@@ -239,6 +298,25 @@ export const useStudio = create<StudioState>((set) => ({
       return { task: { status: 'idle', progressCurrent: 0, progressTotal: 0, progressChapter: '' } }
     }),
 }))
+
+async function loadMetaIntoStore(id: string, file: File) {
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    const meta = await loadPdfMeta(bytes)
+    useStudio.setState((state) => ({
+      files: state.files.map((f) =>
+        f.id === id ? { ...f, status: 'ready', pageCount: meta.pageCount, pages: meta.pages } : f,
+      ),
+    }))
+  } catch (err) {
+    const kind = err instanceof PdfLoadError ? err.kind : 'invalid'
+    useStudio.setState((state) => ({
+      files: state.files.map((f) =>
+        f.id === id ? { ...f, status: 'error', errorKind: kind } : f,
+      ),
+    }))
+  }
+}
 
 export function formatBytes(size: number): string {
   if (size >= 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)} MB`

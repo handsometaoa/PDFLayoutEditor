@@ -7,7 +7,13 @@ import type { ChapterSpec, SheetSettings } from '../pdf/merge'
 import { buildOutput } from '../pdf/merge'
 
 export interface ProcessRequest {
-  chapters: Array<{ id: string; name: string; bytes: ArrayBuffer; keptPages: number[] }>
+  chapters: Array<{
+    id: string
+    name: string
+    bytes: ArrayBuffer
+    keptPages: number[]
+    pageRotations?: Record<number, number>
+  }>
   settings: SheetSettings
   /** true = 各章单独输出；false = 合并为一个 PDF */
   split: boolean
@@ -42,6 +48,7 @@ self.addEventListener('message', async (event: MessageEvent<ProcessRequest>) => 
       name: c.name,
       bytes: new Uint8Array(c.bytes),
       keptPages: c.keptPages,
+      pageRotations: c.pageRotations,
     }))
 
     const results: Array<{

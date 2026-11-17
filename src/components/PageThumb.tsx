@@ -1,10 +1,13 @@
 /**
- * 单页缩略图：可拖拽排序（dnd-kit 网格），点击切换删除/恢复。
+ * 单页缩略图 = ①页面处理操作单元：
+ * 可拖拽排序（dnd-kit 网格）、点击删除/恢复、旋转按钮（↻ 顺时针 90°）。
  * 徽标显示删除后自动递补的新页码，tooltip 显示原始页号。
  */
 import { useSortable } from '@dnd-kit/sortable'
+import { Redo2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { pageVisualSize } from '@/store'
 import type { PdfFileRecord } from '@/store'
 import { PageCanvas } from './PageCanvas'
 
@@ -13,15 +16,19 @@ interface PageThumbProps {
   pageIndex: number
   /** 删除后递补的显示页码；null 表示该页已被删除 */
   displayNumber: number | null
+  /** 用户附加旋转角度（顺时针，90 的倍数） */
+  rotated: number
   onToggle: () => void
+  onRotate: () => void
 }
 
-export function PageThumb({ record, pageIndex, displayNumber, onToggle }: PageThumbProps) {
+export function PageThumb({ record, pageIndex, displayNumber, rotated, onToggle, onRotate }: PageThumbProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: pageIndex,
   })
-  const size = record.pages[pageIndex]
-  const aspect = size && size.height > 0 ? `${size.width} / ${size.height}` : '3 / 4'
+  // 展示纵横比含用户附加旋转（最终成品即此方向）
+  const visual = pageVisualSize(record, pageIndex)
+  const aspect = visual.height > 0 ? `${visual.width} / ${visual.height}` : '3 / 4'
   const deleted = displayNumber === null
   const style =
     transform && (transform.x !== 0 || transform.y !== 0)
@@ -36,7 +43,7 @@ export function PageThumb({ record, pageIndex, displayNumber, onToggle }: PageTh
         title={
           deleted
             ? `原始第 ${pageIndex + 1} 页（已删除）— 点击恢复`
-            : `原始第 ${pageIndex + 1} 页 — 点击删除（拖动可排序）`
+            : `原始第 ${pageIndex + 1} 页 — 点击删除（拖动排序，↻ 旋转）`
         }
         {...attributes}
         {...listeners}
@@ -56,6 +63,22 @@ export function PageThumb({ record, pageIndex, displayNumber, onToggle }: PageTh
           <Badge variant="secondary" className="text-[10px] tabular-nums">{displayNumber}</Badge>
         )}
       </div>
+      {!deleted && (
+        <button
+          type="button"
+          title={`旋转 90°（当前 ${rotated}°）`}
+          onClick={(e) => {
+            e.stopPropagation()
+            onRotate()
+          }}
+          className={cn(
+            'absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full border bg-white/90 text-muted-foreground shadow-sm transition-colors hover:text-foreground',
+            rotated > 0 && 'border-primary/50 text-primary',
+          )}
+        >
+          <Redo2 className="h-3 w-3" />
+        </button>
+      )}
     </div>
   )
 }

@@ -17,6 +17,8 @@ export interface ChapterSpec {
   bytes: Uint8Array
   /** 保留的源页索引（0-based，按当前排序） */
   keptPages: number[]
+  /** 用户附加旋转（源页索引 -> 额外顺时针角度） */
+  pageRotations?: Record<number, number>
 }
 
 export interface SheetSettings {
@@ -87,6 +89,8 @@ async function imposeChapter(
   out: PDFDocument,
   /** 已通过单次 copyPages 复制进输出文档的源页（资源只拷一份，见 buildOutput） */
   copiedPages: Array<import('pdf-lib').PDFPage>,
+  keptPages: number[],
+  pageRotations: Record<number, number> | undefined,
   cells: Rect[],
   sheet: Size,
   autoRotate: boolean,
@@ -108,7 +112,10 @@ async function imposeChapter(
         top: crop.y + crop.height,
       }
       const embedded = await out.embedPage(srcPage, boundingBox)
-      const { options, box } = placePage(rawWidth, rawHeight, srcPage.getRotation().angle, cells[k]!, autoRotate)
+      // 用户附加旋转叠加在查看器旋转之上（两者均为顺时针语义）
+      const pageIndex = keptPages[start + k]!
+      const totalRotation = srcPage.getRotation().angle + (pageRotations?.[pageIndex] ?? 0)
+      const { options, box } = placePage(rawWidth, rawHeight, totalRotation, cells[k]!, autoRotate)
       sheetPage.drawPage(embedded, { ...options, rotate: degrees(options.rotate) })
 
       // 页面序号：内容盒右下角内侧，章节内序号（与缩略图徽标一致）
@@ -185,6 +192,8 @@ export async function buildOutput(
     await imposeChapter(
       out,
       copiedPages,
+      chapter.keptPages,
+      chapter.pageRotations,
       cells,
       sheet,
       settings.autoRotate,

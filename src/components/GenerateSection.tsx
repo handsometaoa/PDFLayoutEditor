@@ -10,7 +10,7 @@ import { computeSheet } from '@/lib/pdf/layout'
 import { runImposition } from '@/lib/workerClient'
 import type { ImpositionOutput } from '@/lib/workerClient'
 import type { ProcessRequest } from '@/lib/worker/imposition.worker'
-import { keptPageIndices, useStudio } from '@/store'
+import { keptPageIndices, keptVisualSizes, useStudio } from '@/store'
 import type { OutputResult, PdfFileRecord } from '@/store'
 
 function chapterLabel(record: PdfFileRecord): string {
@@ -45,9 +45,7 @@ export function GenerateSection({ onPreview }: GenerateSectionProps) {
     clearResult()
     try {
       const split = settings.outputMode === 'split'
-      const effectiveSizes = readyFiles.flatMap((f) =>
-        keptPageIndices(f).map((i) => f.pages[i] ?? { width: 595.28, height: 841.89 }),
-      )
+      const effectiveSizes = readyFiles.flatMap((f) => keptVisualSizes(f))
       const firstKept = keptPageIndices(readyFiles[0]!)[0]
       const sourceFirst =
         firstKept !== undefined ? readyFiles[0]!.pages[firstKept] : undefined
@@ -61,6 +59,7 @@ export function GenerateSection({ onPreview }: GenerateSectionProps) {
           name: chapterLabel(f),
           bytes: await f.file.arrayBuffer(),
           keptPages: keptPageIndices(f),
+          pageRotations: f.pageRotations,
         })
       }
       const suffix = settings.mode === 1 ? '单页' : `${settings.mode}合1`

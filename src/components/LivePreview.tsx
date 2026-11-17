@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageCanvas } from '@/components/PageCanvas'
 import { computeSheet, fitPage, gridCells } from '@/lib/pdf/layout'
 import { cn } from '@/lib/utils'
-import { keptPageIndices, useStudio } from '@/store'
+import { keptPageIndices, pageVisualSize, useStudio } from '@/store'
 
 function watermarkFontSize(sheet: { width: number; height: number }, text: string, cssScale: number): number {
   const diag = Math.hypot(sheet.width, sheet.height)
@@ -35,8 +35,8 @@ export function LivePreview() {
   const readyFiles = files.filter((f) => f.status === 'ready' && f.pageCount - f.deletedPages.length > 0)
   const first = readyFiles[0]
   const kept = first ? keptPageIndices(first) : []
-  const effectiveSizes = readyFiles.flatMap((f) => keptPageIndices(f).map((i) => f.pages[i]!).filter(Boolean))
-  const sourceFirst = first && kept[0] !== undefined ? first.pages[kept[0]] : undefined
+  const effectiveSizes = readyFiles.flatMap((f) => keptPageIndices(f).map((i) => pageVisualSize(f, i)))
+  const sourceFirst = first && kept[0] !== undefined ? pageVisualSize(first, kept[0]) : undefined
   const sheet = computeSheet(effectiveSizes, settings, sourceFirst)
   const cells = gridCells(sheet.width, sheet.height, settings.mode, settings.margin, settings.gutter)
   const previewPages = kept.slice(0, cells.length)
@@ -60,7 +60,7 @@ export function LivePreview() {
               const top = (sheet.height - cell.y - cell.height) * cssScale // PDF y 向上 -> CSS y 向下
               const left = cell.x * cssScale
               const pageIndex = previewPages[k]
-              const page = pageIndex !== undefined ? first?.pages[pageIndex] : undefined
+              const page = pageIndex !== undefined && first ? pageVisualSize(first, pageIndex) : undefined
               const fit =
                 page && pageIndex !== undefined && first
                   ? fitPage(page.width, page.height, cell, settings.autoRotate)
