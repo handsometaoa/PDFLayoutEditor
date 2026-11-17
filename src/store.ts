@@ -313,6 +313,14 @@ export const useStudio = create<StudioState>()((set, get) => ({
     set((state) => {
       const settings = { ...state.settings, ...patch }
       saveSettings(settings)
+      // 版面设置变化后，旧生成结果不再代表当前设置 —— 自动作废并释放资源
+      if (state.task.result) {
+        for (const output of state.task.result.outputs) URL.revokeObjectURL(output.url)
+        return {
+          settings,
+          task: { status: 'idle', progressCurrent: 0, progressTotal: 0, progressChapter: '' },
+        }
+      }
       return { settings }
     }),
 

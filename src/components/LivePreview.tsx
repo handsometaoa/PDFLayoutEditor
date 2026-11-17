@@ -164,6 +164,7 @@ export function LivePreview() {
         <p className="text-xs text-muted-foreground">
           即时反映当前设置{first ? ' · 以第一章为例' : ' · 添加文件后显示页面'}
           {` · 纸张 ${Math.round(sheet.width)}×${Math.round(sheet.height)} pt（比例 ${(sheet.width / sheet.height).toFixed(2)}:1）`}
+          {settings.mode === 'booklet' && ' · 小册子第 1 张正面：左为末页（封底），右为第 1 页（封面）'}
         </p>
       </CardContent>
     </Card>
