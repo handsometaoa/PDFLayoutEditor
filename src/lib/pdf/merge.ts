@@ -156,7 +156,8 @@ async function imposeChapter(
     // 小册子：跨折线的纸张叠放序号（折叠前按此顺序叠纸）
     if (mode === 'booklet' && deco.font) {
       const sheetNo = Math.floor(start / cells.length) + 1
-      const totalSheets = Math.ceil(sequence.length / cells.length)
+      // 每张物理纸 = 2 个版面（正/背面），每版面含 cells.length 个槽位
+      const totalSheets = Math.ceil(sequence.length / (cells.length * 2))
       // Helvetica（WinAnsi）无法编码中文，纸张序号用数字标记
       const text = `Sheet ${sheetNo} / ${totalSheets}`
       const size = 8
