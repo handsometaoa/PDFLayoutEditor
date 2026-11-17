@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { computeSheet } from '@/lib/pdf/layout'
+import { bookletPageOrder, computeSheet } from '@/lib/pdf/layout'
 import { runImposition } from '@/lib/workerClient'
 import type { ImpositionOutput } from '@/lib/workerClient'
 import type { ProcessRequest } from '@/lib/worker/imposition.worker'
@@ -29,11 +29,13 @@ export function GenerateSection({ onPreview }: GenerateSectionProps) {
   const clearResult = useStudio((s) => s.clearResult)
 
   const readyFiles = files.filter((f) => f.status === 'ready' && f.pageCount - f.deletedPages.length > 0)
-  const totalPages = readyFiles.reduce(
-    (sum, f) => sum + Math.ceil((f.pageCount - f.deletedPages.length) / settings.mode),
-    0,
-  )
-  const effectivePadOdd = settings.padOdd && settings.printMode === 'duplex'
+  const estimateFor = (kept: number) =>
+    settings.mode === 'booklet'
+      ? { pages: Math.ceil(kept / 4) * 2, paper: Math.ceil(kept / 4) }
+      : { pages: Math.ceil(kept / settings.mode), paper: Math.ceil(kept / settings.mode) }
+  const totalPages = readyFiles.reduce((sum, f) => sum + estimateFor(f.pageCount - f.deletedPages.length).pages, 0)
+  const totalPaper = readyFiles.reduce((sum, f) => sum + estimateFor(f.pageCount - f.deletedPages.length).paper, 0)
+  const effectivePadOdd = settings.padOdd && settings.printMode === 'duplex' && settings.mode !== 'booklet'
   const processing = task.status === 'processing'
   const pct = task.progressTotal > 0 ? Math.round((task.progressCurrent / task.progressTotal) * 100) : 0
 
@@ -52,17 +54,26 @@ export function GenerateSection({ onPreview }: GenerateSectionProps) {
       const sheet = computeSheet(effectiveSizes, settings, sourceFirst)
 
       patchTask({ status: 'processing', progressCurrent: 0, progressTotal: 0, progressChapter: '' })
+      const sequenceFor = (f: PdfFileRecord): number[] => {
+        const kept = keptPageIndices(f)
+        if (settings.mode === 'booklet') {
+          return bookletPageOrder(kept.length).map((p) =>
+            p >= 1 && p <= kept.length ? kept[p - 1]! : -1,
+          )
+        }
+        return kept
+      }
       const chapters: ProcessRequest['chapters'] = []
       for (const f of readyFiles) {
         chapters.push({
           id: f.id,
           name: chapterLabel(f),
           bytes: await f.file.arrayBuffer(),
-          keptPages: keptPageIndices(f),
+          sequence: sequenceFor(f),
           pageRotations: f.pageRotations,
         })
       }
-      const suffix = settings.mode === 1 ? '单页' : `${settings.mode}合1`
+      const suffix = settings.mode === 1 ? '单页' : settings.mode === 'booklet' ? '小册子' : `${settings.mode}合1`
       const fileNames = split
         ? chapters.map((c) => `${c.name}_${suffix}.pdf`)
         : [
@@ -132,7 +143,7 @@ export function GenerateSection({ onPreview }: GenerateSectionProps) {
       <CardContent className="space-y-3">
         <p className="text-xs text-muted-foreground">
           {readyFiles.length > 0
-            ? `${readyFiles.length} 个章节 · 约 ${totalPages} 页成品 · 双面约 ${Math.ceil(totalPages / 2)} 张纸${settings.outputMode === 'split' ? ' · 各章单独输出' : ''}`
+            ? `${readyFiles.length} 个章节 · 约 ${totalPages} 页成品 · 双面约 ${totalPaper} 张纸${settings.outputMode === 'split' ? ' · 各章单独输出' : ''}`
             : '添加文件后即可生成'}
         </p>
         {processing && (

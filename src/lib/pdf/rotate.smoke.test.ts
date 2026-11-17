@@ -52,7 +52,7 @@ describe('/Rotate 补偿冒烟', () => {
       watermarkText: '',
     }
     const imposed = await buildOutput(
-      [{ id: 's', name: 'source', bytes: source, keptPages: [0, 1, 2, 3] }],
+      [{ id: 's', name: 'source', bytes: source, sequence: [0, 1, 2, 3] }],
       settings,
       () => {},
     )
@@ -60,7 +60,7 @@ describe('/Rotate 补偿冒烟', () => {
     expect(imposed.pageCount).toBe(1)
 
     const imposedAuto = await buildOutput(
-      [{ id: 's', name: 'source', bytes: source, keptPages: [0, 1, 2, 3] }],
+      [{ id: 's', name: 'source', bytes: source, sequence: [0, 1, 2, 3] }],
       { ...settings, autoRotate: true },
       () => {},
     )

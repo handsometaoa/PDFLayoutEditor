@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageCanvas } from '@/components/PageCanvas'
-import { computeSheet, fitPage, gridCells } from '@/lib/pdf/layout'
+import { bookletPageOrder, computeSheet, fitPage, gridCells } from '@/lib/pdf/layout'
 import { cn } from '@/lib/utils'
 import { keptPageIndices, pageVisualSize, useStudio } from '@/store'
 
@@ -39,7 +39,12 @@ export function LivePreview() {
   const sourceFirst = first && kept[0] !== undefined ? pageVisualSize(first, kept[0]) : undefined
   const sheet = computeSheet(effectiveSizes, settings, sourceFirst)
   const cells = gridCells(sheet.width, sheet.height, settings.mode, settings.margin, settings.gutter)
-  const previewPages = kept.slice(0, cells.length)
+  // 版面序列：小册子按折叠页序重排（-1 = 空白槽位）
+  const sequence =
+    settings.mode === 'booklet'
+      ? bookletPageOrder(kept.length).map((p) => (p >= 1 && p <= kept.length ? kept[p - 1]! : -1))
+      : kept
+  const previewSlots = sequence.slice(0, cells.length)
   const cssScale = width > 0 ? width / sheet.width : 0
   const watermarkText =
     settings.watermarkEnabled && settings.watermarkText.trim() ? settings.watermarkText.trim() : null
@@ -59,13 +64,13 @@ export function LivePreview() {
             cells.map((cell, k) => {
               const top = (sheet.height - cell.y - cell.height) * cssScale // PDF y 向上 -> CSS y 向下
               const left = cell.x * cssScale
-              const pageIndex = previewPages[k]
+              const pageIndex = previewSlots[k]
               const page = pageIndex !== undefined && first ? pageVisualSize(first, pageIndex) : undefined
               const fit =
-                page && pageIndex !== undefined && first
+                page && pageIndex !== undefined && pageIndex >= 0 && first
                   ? fitPage(page.width, page.height, cell, settings.autoRotate)
                   : null
-              const isBlank = pageIndex === undefined
+              const isBlank = pageIndex === undefined || pageIndex < 0
               return (
                 <div
                   key={k}
@@ -80,7 +85,7 @@ export function LivePreview() {
                     height: cell.height * cssScale,
                   }}
                 >
-                  {fit && page && first && pageIndex !== undefined && (
+                  {fit && page && first && pageIndex !== undefined && pageIndex >= 0 && (
                     <div
                       className="absolute"
                       style={{
@@ -129,6 +134,14 @@ export function LivePreview() {
                 </div>
               )
             })}
+          {settings.mode === 'booklet' && width > 0 && (
+            <div
+              className="pointer-events-none absolute top-0 bottom-0 border-l border-dashed border-muted-foreground/40"
+              style={{ left: `${cssScale * (sheet.width / 2)}px` }}
+            >
+              <span className="absolute left-1 top-1 text-[10px] text-muted-foreground/70">对折线</span>
+            </div>
+          )}
           {watermarkText && width > 0 && (
             <div
               className="pointer-events-none absolute left-1/2 top-1/2 select-none font-bold text-muted-foreground/50"

@@ -11,7 +11,8 @@ export interface ProcessRequest {
     id: string
     name: string
     bytes: ArrayBuffer
-    keptPages: number[]
+    /** 版面序列：源页索引（-1 = 空白槽位） */
+    sequence: number[]
     pageRotations?: Record<number, number>
   }>
   settings: SheetSettings
@@ -47,7 +48,7 @@ self.addEventListener('message', async (event: MessageEvent<ProcessRequest>) => 
       id: c.id,
       name: c.name,
       bytes: new Uint8Array(c.bytes),
-      keptPages: c.keptPages,
+      sequence: c.sequence,
       pageRotations: c.pageRotations,
     }))
 

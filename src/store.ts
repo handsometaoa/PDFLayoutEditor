@@ -5,7 +5,7 @@
  */
 import { create } from 'zustand'
 import type { ChapterStart } from './lib/pdf/merge'
-import type { NupMode, OrientationSetting, Size } from './lib/pdf/layout'
+import type { LayoutMode, OrientationSetting, Size } from './lib/pdf/layout'
 import { PdfLoadError, loadPdfMeta } from './lib/pdf/load'
 import { destroyPdfDoc } from './lib/pdfjs'
 
@@ -29,7 +29,7 @@ export interface PdfFileRecord {
 }
 
 export interface OutputSettings {
-  mode: NupMode
+  mode: LayoutMode
   orientation: OrientationSetting
   /** 输出纸张：固定 A4，或跟随第一章源页面比例 */
   sheetSource: 'a4' | 'source'

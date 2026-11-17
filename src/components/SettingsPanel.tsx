@@ -84,7 +84,10 @@ export function SettingsPanel() {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* 核心决策 */}
-        <Row label="排版模式" hint="每张纸放置的页面数">
+        <Row
+          label="排版模式"
+          hint={settings.mode === 'booklet' ? '对折装订，自动补空白至 4 的倍数' : '每张纸放置的页面数'}
+        >
           <Segmented
             value={settings.mode}
             onChange={(v) => setSettings({ mode: v })}
@@ -92,6 +95,7 @@ export function SettingsPanel() {
               { value: 1, label: '单页' },
               { value: 2, label: '2合1' },
               { value: 4, label: '4合1' },
+              { value: 'booklet', label: '小册子' },
             ]}
           />
         </Row>

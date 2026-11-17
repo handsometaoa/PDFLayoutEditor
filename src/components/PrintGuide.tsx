@@ -63,6 +63,10 @@ export function PrintGuide() {
                 </li>
                 <li>纸张方向保持「自动」或横向</li>
                 <li>奇数章补的空白页都落在纸张背面，不浪费正面</li>
+                <li>
+                  小册子模式：双面打印后<b className="text-foreground">逐张对折</b>
+                  ，按页序叠放并沿折线装订即为成册
+                </li>
               </ol>
               <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
                 <p className="mb-1 font-medium text-foreground">Windows 通用路径</p>

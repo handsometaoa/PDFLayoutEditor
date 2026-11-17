@@ -7,7 +7,7 @@
  */
 import { PDFDocument, StandardFonts, degrees, rgb } from 'pdf-lib'
 import type { PDFFont, PDFImage } from 'pdf-lib'
-import type { NupMode, Rect, Size } from './layout'
+import type { LayoutMode, Rect, Size } from './layout'
 import { gridCells } from './layout'
 import { placePage } from './imposition'
 
@@ -15,14 +15,14 @@ export interface ChapterSpec {
   id: string
   name: string
   bytes: Uint8Array
-  /** 保留的源页索引（0-based，按当前排序） */
-  keptPages: number[]
+  /** 版面序列：源页索引按输出槽位顺序排列；-1 = 空白槽位（小册子补位） */
+  sequence: number[]
   /** 用户附加旋转（源页索引 -> 额外顺时针角度） */
   pageRotations?: Record<number, number>
 }
 
 export interface SheetSettings {
-  mode: NupMode
+  mode: LayoutMode
   sheetWidth: number
   sheetHeight: number
   margin: number
@@ -87,9 +87,9 @@ async function renderWatermarkPng(text: string, sheetW: number, sheetH: number):
 
 async function imposeChapter(
   out: PDFDocument,
-  /** 已通过单次 copyPages 复制进输出文档的源页（资源只拷一份，见 buildOutput） */
-  copiedPages: Array<import('pdf-lib').PDFPage>,
-  keptPages: number[],
+  /** 版面序列：源页索引（-1 = 空白槽位） */
+  sequence: number[],
+  pageMap: Map<number, import('pdf-lib').PDFPage>,
   pageRotations: Record<number, number> | undefined,
   cells: Rect[],
   sheet: Size,
@@ -98,10 +98,13 @@ async function imposeChapter(
   onProgress: ProgressFn,
   chapterIndex: number,
 ): Promise<void> {
-  for (let start = 0; start < copiedPages.length; start += cells.length) {
+  for (let start = 0; start < sequence.length; start += cells.length) {
     const sheetPage = out.addPage([sheet.width, sheet.height])
-    for (let k = 0; k < cells.length && start + k < copiedPages.length; k++) {
-      const srcPage = copiedPages[start + k]!
+    for (let k = 0; k < cells.length && start + k < sequence.length; k++) {
+      const slot = sequence[start + k]!
+      if (slot < 0) continue // 空白槽位（小册子补位）
+      const srcPage = pageMap.get(slot)
+      if (!srcPage) continue
       const crop = srcPage.getCropBox() // { x, y, width, height }（未旋转原始空间）
       const rawWidth = crop.width
       const rawHeight = crop.height
@@ -113,12 +116,11 @@ async function imposeChapter(
       }
       const embedded = await out.embedPage(srcPage, boundingBox)
       // 用户附加旋转叠加在查看器旋转之上（两者均为顺时针语义）
-      const pageIndex = keptPages[start + k]!
-      const totalRotation = srcPage.getRotation().angle + (pageRotations?.[pageIndex] ?? 0)
+      const totalRotation = srcPage.getRotation().angle + (pageRotations?.[slot] ?? 0)
       const { options, box } = placePage(rawWidth, rawHeight, totalRotation, cells[k]!, autoRotate)
       sheetPage.drawPage(embedded, { ...options, rotate: degrees(options.rotate) })
 
-      // 页面序号：内容盒右下角内侧，章节内序号（与缩略图徽标一致）
+      // 页面序号：内容盒右下角内侧，输出槽位序号（小册子即折叠后阅读页码）
       if (deco.font) {
         const label = String(start + k + 1)
         const size = Math.min(Math.max(6, box.width * 0.025), 12)
@@ -131,7 +133,7 @@ async function imposeChapter(
           color: rgb(0.45, 0.45, 0.45),
         })
       }
-      onProgress(chapterIndex, start + k + 1, copiedPages.length)
+      onProgress(chapterIndex, start + k + 1, sequence.length)
     }
     // 水印整页铺放（透明度已烘焙进 PNG）
     if (deco.watermark) {
@@ -150,7 +152,7 @@ export async function buildOutput(
   settings: SheetSettings,
   onProgress: ProgressFn,
 ): Promise<BuildResult> {
-  const effective = chapters.filter((c) => c.keptPages.length > 0)
+  const effective = chapters.filter((c) => c.sequence.some((i) => i >= 0))
   if (effective.length === 0) {
     throw new Error('没有可打印的页面：所有页面均被删除')
   }
@@ -188,11 +190,14 @@ export async function buildOutput(
     // 关键优化：单次 copyPages 让 PDFObjectCopier 的缓存跨页共享字体/图片等资源，
     // 随后嵌入输出文档内的副本页 —— 否则每页 embedPage 都会深拷贝一份资源，
     // 输出体积会膨胀数倍（实测 82MB -> 预期 ~15MB）。
-    const copiedPages = await out.copyPages(src, chapter.keptPages)
+    const copyIndices = [...new Set(chapter.sequence.filter((i) => i >= 0))]
+    const copied = await out.copyPages(src, copyIndices)
+    const pageMap = new Map<number, import('pdf-lib').PDFPage>()
+    copyIndices.forEach((idx, i) => pageMap.set(idx, copied[i]!))
     await imposeChapter(
       out,
-      copiedPages,
-      chapter.keptPages,
+      chapter.sequence,
+      pageMap,
       chapter.pageRotations,
       cells,
       sheet,

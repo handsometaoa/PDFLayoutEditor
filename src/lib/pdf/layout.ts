@@ -7,6 +7,8 @@
  */
 
 export type NupMode = 1 | 2 | 4
+/** 版式：普通网格排版或小册子拼版（对折装订） */
+export type LayoutMode = NupMode | 'booklet'
 export type OrientationSetting = 'auto' | 'landscape' | 'portrait'
 export type Orientation = 'landscape' | 'portrait'
 
@@ -37,29 +39,30 @@ export function visualSize(rawWidth: number, rawHeight: number, rotation: number
 }
 
 /**
- * 按行优先 Z 序（左上→右上→左下→右下）切分网格。
+ * 按行优先 Z 序切分网格；小册子为 2 格横排、折线处零间距。
  * mode=4 恒为 2×2；mode=2 横向纸为左右 1×2、纵向纸为上下 2×1；
  * mode=1（单页）为 1×1 整页可用区域。
  */
 export function gridCells(
   sheetWidth: number,
   sheetHeight: number,
-  mode: NupMode,
+  mode: LayoutMode,
   margin: number,
   gutter: number,
 ): Rect[] {
   const landscape = sheetWidth >= sheetHeight
-  const cols = mode === 4 ? 2 : mode === 2 ? (landscape ? 2 : 1) : 1
-  const rows = mode === 4 ? 2 : mode === 2 ? (landscape ? 1 : 2) : 1
-  const cellWidth = Math.max(1, (sheetWidth - 2 * margin - (cols - 1) * gutter) / cols)
-  const cellHeight = Math.max(1, (sheetHeight - 2 * margin - (rows - 1) * gutter) / rows)
+  const cols = mode === 'booklet' ? 2 : mode === 4 ? 2 : mode === 2 ? (landscape ? 2 : 1) : 1
+  const rows = mode === 'booklet' ? 1 : mode === 4 ? 2 : mode === 2 ? (landscape ? 1 : 2) : 1
+  const g = mode === 'booklet' ? 0 : gutter // 小册子折线处不留缝
+  const cellWidth = Math.max(1, (sheetWidth - 2 * margin - (cols - 1) * g) / cols)
+  const cellHeight = Math.max(1, (sheetHeight - 2 * margin - (rows - 1) * g) / rows)
   const cells: Rect[] = []
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       // row 0 是视觉顶部：PDF 坐标原点在左下，Y 向上，故从纸张顶部起算
       cells.push({
-        x: margin + col * (cellWidth + gutter),
-        y: sheetHeight - margin - cellHeight - row * (cellHeight + gutter),
+        x: margin + col * (cellWidth + g),
+        y: sheetHeight - margin - cellHeight - row * (cellHeight + g),
         width: cellWidth,
         height: cellHeight,
       })
@@ -138,7 +141,7 @@ export function sheetFromSourceSize(source: Size, orientation: Orientation): Siz
 }
 
 export interface SheetOptions {
-  mode: NupMode
+  mode: LayoutMode
   orientation: OrientationSetting
   sheetSource: 'a4' | 'source'
   margin: number
@@ -148,6 +151,8 @@ export interface SheetOptions {
 
 /** 按设置推算输出纸张尺寸（方向自动时对全部有效页面取最优）——生成与即时预览共用 */
 export function computeSheet(pageSizes: Size[], opts: SheetOptions, sourceFirstPage?: Size): Size {
+  // 小册子的纸张形状与 2 格横排一致（对折后每半张为一页）
+  const sheetMode: NupMode = opts.mode === 'booklet' ? 2 : opts.mode
   let landscapeSheet = A4_LANDSCAPE
   if (opts.sheetSource === 'source' && sourceFirstPage) {
     landscapeSheet = sheetFromSourceSize(sourceFirstPage, 'landscape')
@@ -156,7 +161,7 @@ export function computeSheet(pageSizes: Size[], opts: SheetOptions, sourceFirstP
     pageSizes,
     opts.orientation,
     landscapeSheet,
-    opts.mode,
+    sheetMode,
     opts.margin,
     opts.gutter,
     opts.autoRotate,
@@ -164,4 +169,21 @@ export function computeSheet(pageSizes: Size[], opts: SheetOptions, sourceFirstP
   return orientation === 'landscape'
     ? landscapeSheet
     : { width: landscapeSheet.height, height: landscapeSheet.width }
+}
+
+/**
+ * 小册子页序：返回逻辑页号（1-based）数组，按「正面左、正面右、背面左、背面右」
+ * 的物理槽位排列；页数补足至 4 的倍数，超出实际页数的槽位为 -1（空白）。
+ * 折叠后即为 1,2,3… 的阅读顺序。
+ */
+export function bookletPageOrder(count: number): number[] {
+  const padded = Math.ceil(count / 4) * 4
+  const slots: number[] = []
+  for (let s = 0; s < padded / 4; s++) {
+    slots.push(padded - 2 * s) // 正面左
+    slots.push(2 * s + 1) // 正面右
+    slots.push(2 * s + 2) // 背面左
+    slots.push(padded - 2 * s - 1) // 背面右
+  }
+  return slots.map((p) => (p >= 1 && p <= count ? p : -1))
 }

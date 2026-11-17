@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Rect, Size } from './layout'
-import { A4_LANDSCAPE, chooseOrientation, fitPage, gridCells, normalizeRotation, visualSize } from './layout'
+import { A4_LANDSCAPE, bookletPageOrder, chooseOrientation, fitPage, gridCells, normalizeRotation, visualSize } from './layout'
 
 describe('normalizeRotation', () => {
   it('规整任意角度', () => {
@@ -60,6 +60,13 @@ describe('gridCells', () => {
     expect(cells[0]!.x).toBeCloseTo(14)
     expect(cells[0]!.y).toBeCloseTo(14)
   })
+
+  it('小册子：2 格横排且折线处零间距', () => {
+    const cells = gridCells(842, 595, 'booklet', 14, 8)
+    expect(cells).toHaveLength(2)
+    expect(cells[0]!.width).toBeCloseTo((842 - 28) / 2)
+    expect(cells[1]!.x).toBeCloseTo(cells[0]!.x + cells[0]!.width) // 折线无缝
+  })
 })
 
 describe('fitPage', () => {
@@ -105,5 +112,21 @@ describe('chooseOrientation', () => {
   it('显式指定方向时直接采用', () => {
     const doc: Size[] = [{ width: 595, height: 842 }]
     expect(chooseOrientation(doc, 'landscape', A4_LANDSCAPE, 4, 14, 8, true)).toBe('landscape')
+  })
+})
+
+describe('bookletPageOrder', () => {
+  it('8 页（2 张纸）：折叠后阅读顺序为 1-8', () => {
+    expect(bookletPageOrder(8)).toEqual([8, 1, 2, 7, 6, 3, 4, 5])
+  })
+
+  it('10 页自动补足至 12，超出槽位为 -1（空白）', () => {
+    expect(bookletPageOrder(10)).toEqual([-1, 1, 2, -1, 10, 3, 4, 9, 8, 5, 6, 7])
+  })
+
+  it('槽位数恒为 4 的倍数', () => {
+    for (const n of [1, 3, 5, 7, 9, 13, 17]) {
+      expect(bookletPageOrder(n).length % 4).toBe(0)
+    }
   })
 })
