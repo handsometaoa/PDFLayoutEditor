@@ -71,6 +71,7 @@ export function GenerateSection({ onPreview }: GenerateSectionProps) {
           bytes: await f.file.arrayBuffer(),
           sequence: sequenceFor(f),
           pageRotations: f.pageRotations,
+          pageCrops: f.pageCrops,
         })
       }
       const suffix = settings.mode === 1 ? '单页' : settings.mode === 'booklet' ? '小册子' : `${settings.mode}合1`

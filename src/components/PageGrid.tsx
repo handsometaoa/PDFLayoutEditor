@@ -17,7 +17,7 @@ import {
   rectSortingStrategy,
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable'
-import { Eraser, Redo2 } from 'lucide-react'
+import { Eraser, Redo2, Scissors, Undo2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,6 +33,8 @@ export function PageGrid({ record }: { record: PdfFileRecord }) {
   const rotatePage = useStudio((s) => s.rotatePage)
   const applyPageRange = useStudio((s) => s.applyPageRange)
   const markPagesDeleted = useStudio((s) => s.markPagesDeleted)
+  const setPageCrops = useStudio((s) => s.setPageCrops)
+  const clearPageCrops = useStudio((s) => s.clearPageCrops)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -42,7 +44,37 @@ export function PageGrid({ record }: { record: PdfFileRecord }) {
   const keptCount = record.pageCount - record.deletedPages.length
 
   const [scanning, setScanning] = useState<{ current: number; total: number } | null>(null)
+  const [trimming, setTrimming] = useState<{ current: number; total: number } | null>(null)
   const [rangeText, setRangeText] = useState('')
+  const hasCrops = Object.keys(record.pageCrops ?? {}).length > 0
+
+  const trimMargins = async () => {
+    if (trimming) return
+    if (hasCrops) {
+      clearPageCrops(record.id)
+      toast.info('已清除裁白边')
+      return
+    }
+    setTrimming({ current: 0, total: record.pageCount })
+    try {
+      const { detectContentCrops } = await import('@/lib/pdfjs')
+      const bytes = new Uint8Array(await record.file.arrayBuffer())
+      const crops = await detectContentCrops(bytes, record.pageCount, (current, total) =>
+        setTrimming({ current, total }),
+      )
+      const count = Object.keys(crops).length
+      if (count === 0) {
+        toast.info('各页边距已紧凑，无需裁白边')
+      } else {
+        setPageCrops(record.id, crops)
+        toast.success(`已为 ${count} 页设置裁白边（排版预览可见效果）`)
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '裁白边检测失败')
+    } finally {
+      setTrimming(null)
+    }
+  }
 
   const scanBlank = async () => {
     if (scanning) return
@@ -111,6 +143,30 @@ export function PageGrid({ record }: { record: PdfFileRecord }) {
           <Redo2 className="mr-1 h-3.5 w-3.5" />
           应用范围
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-xs"
+          disabled={trimming !== null || scanning !== null}
+          onClick={() => void trimMargins()}
+        >
+          <Scissors className="mr-1 h-3.5 w-3.5" />
+          {trimming ? `裁边中 ${trimming.current}/${trimming.total}` : hasCrops ? '清除裁边' : '裁白边'}
+        </Button>
+        {hasCrops && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => {
+              clearPageCrops(record.id)
+              toast.info('已清除裁白边')
+            }}
+          >
+            <Undo2 className="mr-1 h-3.5 w-3.5" />
+            撤销
+          </Button>
+        )}
         <span className="text-xs text-muted-foreground">
           将排版 <b className="text-foreground tabular-nums">{keptCount}</b> / {record.pageCount} 页
           {record.deletedPages.length > 0 && (
@@ -119,6 +175,7 @@ export function PageGrid({ record }: { record: PdfFileRecord }) {
           {Object.keys(record.pageRotations ?? {}).length > 0 && (
             <span> · 已旋转 {Object.keys(record.pageRotations ?? {}).length} 页</span>
           )}
+          {hasCrops && <span> · 已裁边 {hasCrops ? Object.keys(record.pageCrops ?? {}).length : 0} 页</span>}
         </span>
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>

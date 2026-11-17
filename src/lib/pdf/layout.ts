@@ -171,6 +171,28 @@ export function computeSheet(pageSizes: Size[], opts: SheetOptions, sourceFirstP
     : { width: landscapeSheet.height, height: landscapeSheet.width }
 }
 
+export interface CropFrac {
+  /** 裁剪框比例位置（相对原始页宽高，0-1，PDF 坐标 y 向上） */
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
+
+/** 裁剪后的视觉尺寸（原始尺寸 × 裁剪比例，再按总旋转角交换宽高） */
+export function croppedVisualSize(
+  raw: Size,
+  baseRotation: number,
+  frac: CropFrac | undefined,
+  extraRotation: number,
+): Size {
+  const x0 = frac?.x0 ?? 0
+  const y0 = frac?.y0 ?? 0
+  const x1 = frac?.x1 ?? 1
+  const y1 = frac?.y1 ?? 1
+  return visualSize(raw.width * (x1 - x0), raw.height * (y1 - y0), baseRotation + extraRotation)
+}
+
 /**
  * 小册子页序：返回逻辑页号（1-based）数组，按「正面左、正面右、背面左、背面右」
  * 的物理槽位排列；页数补足至 4 的倍数，超出实际页数的槽位为 -1（空白）。

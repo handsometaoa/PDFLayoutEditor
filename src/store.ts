@@ -5,7 +5,8 @@
  */
 import { create } from 'zustand'
 import type { ChapterStart } from './lib/pdf/merge'
-import type { LayoutMode, OrientationSetting, Size } from './lib/pdf/layout'
+import type { CropFrac, LayoutMode, OrientationSetting, Size } from './lib/pdf/layout'
+import { croppedVisualSize } from './lib/pdf/layout'
 import { PdfLoadError, loadPdfMeta } from './lib/pdf/load'
 import { destroyPdfDoc } from './lib/pdfjs'
 
@@ -25,6 +26,12 @@ export interface PdfFileRecord {
   pageOrder?: number[]
   /** 用户附加旋转（源页索引 -> 额外顺时针角度，90 的倍数） */
   pageRotations?: Record<number, number>
+  /** 裁白边（源页索引 -> 裁剪框比例，raw 用户空间） */
+  pageCrops?: Record<number, CropFrac>
+  /** 每页未裁剪原始尺寸（raw 用户空间） */
+  raws?: Size[]
+  /** 每页查看器旋转角（/Rotate） */
+  baseRotations?: number[]
   expanded: boolean
 }
 
@@ -98,6 +105,10 @@ interface StudioState {
   applyPageRange: (fileId: string, text: string) => boolean
   /** 批量标记删除（空白页检测结果），返回合并后的删除总数 */
   markPagesDeleted: (fileId: string, pageIndices: number[]) => number
+  /** 设置裁白边（源页索引 -> 裁剪框比例） */
+  setPageCrops: (fileId: string, crops: Record<number, CropFrac>) => void
+  /** 清除裁白边 */
+  clearPageCrops: (fileId: string) => void
   /** 页面拖拽排序：from/to 为展示顺序中的位置 */
   reorderPages: (fileId: string, from: number, to: number) => void
   moveFile: (fromIndex: number, toIndex: number) => void
@@ -118,12 +129,17 @@ export function keptPageIndices(record: PdfFileRecord): number[] {
   return pageOrderOf(record).filter((i) => !deleted.has(i))
 }
 
-/** 某页的视觉尺寸（含用户附加旋转） */
+/** 某页的视觉尺寸（含裁白边与用户附加旋转） */
 export function pageVisualSize(record: PdfFileRecord, pageIndex: number): Size {
-  const base = record.pages[pageIndex] ?? { width: 595.28, height: 841.89 }
+  const fallback = record.pages[pageIndex] ?? { width: 595.28, height: 841.89 }
   const extra = record.pageRotations?.[pageIndex] ?? 0
-  if (extra % 180 === 90) return { width: base.height, height: base.width }
-  return base
+  const raw = record.raws?.[pageIndex]
+  if (!raw) {
+    // 无原始尺寸信息（历史状态）时按附加旋转近似
+    return extra % 180 === 90 ? { width: fallback.height, height: fallback.width } : fallback
+  }
+  const baseRot = record.baseRotations?.[pageIndex] ?? 0
+  return croppedVisualSize(raw, baseRot, record.pageCrops?.[pageIndex], extra)
 }
 
 /** 保留页的视觉尺寸序列（供纸张方向计算与即时预览） */
@@ -187,6 +203,8 @@ export const useStudio = create<StudioState>()((set, get) => ({
       status: 'loading',
       pageCount: 0,
       pages: [],
+      raws: [],
+      baseRotations: [],
       deletedPages: [],
       expanded: false,
     }))
@@ -262,6 +280,16 @@ export const useStudio = create<StudioState>()((set, get) => ({
     return get().files.find((f) => f.id === fileId)?.deletedPages.length ?? 0
   },
 
+  setPageCrops: (fileId, crops) =>
+    set((state) => ({
+      files: state.files.map((f) => (f.id === fileId ? { ...f, pageCrops: crops } : f)),
+    })),
+
+  clearPageCrops: (fileId) =>
+    set((state) => ({
+      files: state.files.map((f) => (f.id === fileId ? { ...f, pageCrops: undefined } : f)),
+    })),
+
   reorderPages: (fileId, from, to) =>
     set((state) => ({
       files: state.files.map((f) => {
@@ -305,7 +333,16 @@ async function loadMetaIntoStore(id: string, file: File) {
     const meta = await loadPdfMeta(bytes)
     useStudio.setState((state) => ({
       files: state.files.map((f) =>
-        f.id === id ? { ...f, status: 'ready', pageCount: meta.pageCount, pages: meta.pages } : f,
+        f.id === id
+          ? {
+              ...f,
+              status: 'ready',
+              pageCount: meta.pageCount,
+              pages: meta.pages,
+              raws: meta.raws,
+              baseRotations: meta.rotations,
+            }
+          : f,
       ),
     }))
   } catch (err) {

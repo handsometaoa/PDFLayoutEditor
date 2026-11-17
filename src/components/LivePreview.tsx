@@ -68,7 +68,7 @@ export function LivePreview() {
               const page = pageIndex !== undefined && first ? pageVisualSize(first, pageIndex) : undefined
               const fit =
                 page && pageIndex !== undefined && pageIndex >= 0 && first
-                  ? fitPage(page.width, page.height, cell, settings.autoRotate)
+                  ? fitPage(page.width, page.height, cell, settings.autoRotate && settings.mode !== 'booklet')
                   : null
               const isBlank = pageIndex === undefined || pageIndex < 0
               return (

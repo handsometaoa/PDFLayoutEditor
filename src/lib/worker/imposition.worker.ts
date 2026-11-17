@@ -4,6 +4,7 @@
  * 支持两种输出：合并为一个 PDF，或各章单独输出（split = true）。
  */
 import type { ChapterSpec, SheetSettings } from '../pdf/merge'
+import type { CropFrac } from '../pdf/layout'
 import { buildOutput } from '../pdf/merge'
 
 export interface ProcessRequest {
@@ -14,6 +15,8 @@ export interface ProcessRequest {
     /** 版面序列：源页索引（-1 = 空白槽位） */
     sequence: number[]
     pageRotations?: Record<number, number>
+    /** 裁白边（源页索引 -> 裁剪框比例） */
+    pageCrops?: Record<number, CropFrac>
   }>
   settings: SheetSettings
   /** true = 各章单独输出；false = 合并为一个 PDF */
@@ -50,6 +53,7 @@ self.addEventListener('message', async (event: MessageEvent<ProcessRequest>) => 
       bytes: new Uint8Array(c.bytes),
       sequence: c.sequence,
       pageRotations: c.pageRotations,
+      pageCrops: c.pageCrops,
     }))
 
     const results: Array<{

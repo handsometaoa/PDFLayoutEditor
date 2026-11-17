@@ -22,6 +22,10 @@ export interface PdfMeta {
   pageCount: number
   /** 每页视觉尺寸（已应用 /Rotate） */
   pages: Size[]
+  /** 每页未裁剪原始尺寸（raw 用户空间） */
+  raws: Size[]
+  /** 每页查看器旋转角（/Rotate） */
+  rotations: number[]
 }
 
 export async function loadPdfMeta(bytes: Uint8Array): Promise<PdfMeta> {
@@ -34,9 +38,15 @@ export async function loadPdfMeta(bytes: Uint8Array): Promise<PdfMeta> {
     }
     throw new PdfLoadError('invalid', '无法解析该 PDF 文件')
   }
-  const pages = doc.getPages().map((p) => {
+  const pages: Size[] = []
+  const raws: Size[] = []
+  const rotations: number[] = []
+  for (const p of doc.getPages()) {
     const box = p.getCropBox() // { x, y, width, height }（未旋转原始空间）
-    return visualSize(box.width, box.height, p.getRotation().angle)
-  })
-  return { pageCount: doc.getPageCount(), pages }
+    const rot = p.getRotation().angle
+    raws.push({ width: box.width, height: box.height })
+    rotations.push(rot)
+    pages.push(visualSize(box.width, box.height, rot))
+  }
+  return { pageCount: doc.getPageCount(), pages, raws, rotations }
 }

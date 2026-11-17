@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Rect, Size } from './layout'
-import { A4_LANDSCAPE, bookletPageOrder, chooseOrientation, fitPage, gridCells, normalizeRotation, visualSize } from './layout'
+import { A4_LANDSCAPE, bookletPageOrder, chooseOrientation, croppedVisualSize, fitPage, gridCells, normalizeRotation, visualSize } from './layout'
 
 describe('normalizeRotation', () => {
   it('规整任意角度', () => {
@@ -128,5 +128,22 @@ describe('bookletPageOrder', () => {
     for (const n of [1, 3, 5, 7, 9, 13, 17]) {
       expect(bookletPageOrder(n).length % 4).toBe(0)
     }
+  })
+})
+
+describe('croppedVisualSize', () => {
+  it('按比例裁剪内容区域', () => {
+    expect(croppedVisualSize({ width: 800, height: 600 }, 0, { x0: 0.1, y0: 0.1, x1: 0.9, y1: 0.9 }, 0)).toEqual({
+      width: 640,
+      height: 480,
+    })
+  })
+
+  it('查看器旋转 90° 时交换宽高', () => {
+    expect(croppedVisualSize({ width: 800, height: 600 }, 90, undefined, 0)).toEqual({ width: 600, height: 800 })
+  })
+
+  it('用户附加旋转叠加', () => {
+    expect(croppedVisualSize({ width: 800, height: 600 }, 0, undefined, 90)).toEqual({ width: 600, height: 800 })
   })
 })

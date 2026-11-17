@@ -7,7 +7,7 @@
  */
 import { PDFDocument, StandardFonts, degrees, rgb } from 'pdf-lib'
 import type { PDFFont, PDFImage } from 'pdf-lib'
-import type { LayoutMode, Rect, Size } from './layout'
+import type { CropFrac, LayoutMode, Rect, Size } from './layout'
 import { gridCells } from './layout'
 import { placePage } from './imposition'
 
@@ -19,6 +19,8 @@ export interface ChapterSpec {
   sequence: number[]
   /** 用户附加旋转（源页索引 -> 额外顺时针角度） */
   pageRotations?: Record<number, number>
+  /** 裁白边（源页索引 -> 裁剪框比例，raw 用户空间） */
+  pageCrops?: Record<number, CropFrac>
 }
 
 export interface SheetSettings {
@@ -91,6 +93,7 @@ async function imposeChapter(
   sequence: number[],
   pageMap: Map<number, import('pdf-lib').PDFPage>,
   pageRotations: Record<number, number> | undefined,
+  pageCrops: Record<number, CropFrac> | undefined,
   cells: Rect[],
   sheet: Size,
   autoRotate: boolean,
@@ -106,17 +109,26 @@ async function imposeChapter(
       const srcPage = pageMap.get(slot)
       if (!srcPage) continue
       const crop = srcPage.getCropBox() // { x, y, width, height }（未旋转原始空间）
-      const rawWidth = crop.width
-      const rawHeight = crop.height
-      const boundingBox = {
-        left: crop.x,
-        bottom: crop.y,
-        right: crop.x + crop.width,
-        top: crop.y + crop.height,
-      }
+      const frac = pageCrops?.[slot]
+      const boundingBox = frac
+        ? {
+            left: crop.x + crop.width * frac.x0,
+            bottom: crop.y + crop.height * frac.y0,
+            right: crop.x + crop.width * frac.x1,
+            top: crop.y + crop.height * frac.y1,
+          }
+        : {
+            left: crop.x,
+            bottom: crop.y,
+            right: crop.x + crop.width,
+            top: crop.y + crop.height,
+          }
+      const rawWidth = boundingBox.right - boundingBox.left
+      const rawHeight = boundingBox.top - boundingBox.bottom
       const embedded = await out.embedPage(srcPage, boundingBox)
       // 用户附加旋转叠加在查看器旋转之上（两者均为顺时针语义）
       const totalRotation = srcPage.getRotation().angle + (pageRotations?.[slot] ?? 0)
+      // 小册子固定左右并排（折叠方向），不自动旋转页面
       const { options, box } = placePage(rawWidth, rawHeight, totalRotation, cells[k]!, autoRotate)
       sheetPage.drawPage(embedded, { ...options, rotate: degrees(options.rotate) })
 
@@ -199,9 +211,11 @@ export async function buildOutput(
       chapter.sequence,
       pageMap,
       chapter.pageRotations,
+      chapter.pageCrops,
       cells,
       sheet,
-      settings.autoRotate,
+      // 小册子固定左右并排（折叠方向），不自动旋转页面
+      settings.autoRotate && settings.mode !== 'booklet',
       deco,
       onProgress,
       i,
