@@ -21,6 +21,8 @@ export interface ChapterSpec {
   pageRotations?: Record<number, number>
   /** 裁白边（源页索引 -> 裁剪框比例，raw 用户空间） */
   pageCrops?: Record<number, CropFrac>
+  /** 每个槽位的逻辑页号（小册子折叠后阅读页码；-1 = 空白）。缺省用槽位序号 */
+  pageLabels?: number[]
 }
 
 export interface SheetSettings {
@@ -94,6 +96,8 @@ async function imposeChapter(
   pageMap: Map<number, import('pdf-lib').PDFPage>,
   pageRotations: Record<number, number> | undefined,
   pageCrops: Record<number, CropFrac> | undefined,
+  pageLabels: number[] | undefined,
+  mode: LayoutMode,
   cells: Rect[],
   sheet: Size,
   autoRotate: boolean,
@@ -132,9 +136,11 @@ async function imposeChapter(
       const { options, box } = placePage(rawWidth, rawHeight, totalRotation, cells[k]!, autoRotate)
       sheetPage.drawPage(embedded, { ...options, rotate: degrees(options.rotate) })
 
-      // 页面序号：内容盒右下角内侧，输出槽位序号（小册子即折叠后阅读页码）
+      // 页面序号：内容盒右下角内侧。小册子用逻辑页号（折叠后阅读页码），
+      // 其余模式用章节内槽位序号
       if (deco.font) {
-        const label = String(start + k + 1)
+        const custom = pageLabels?.[start + k]
+        const label = custom !== undefined && custom >= 1 ? String(custom) : String(start + k + 1)
         const size = Math.min(Math.max(6, box.width * 0.025), 12)
         const textWidth = deco.font.widthOfTextAtSize(label, size)
         sheetPage.drawText(label, {
@@ -146,6 +152,22 @@ async function imposeChapter(
         })
       }
       onProgress(chapterIndex, start + k + 1, sequence.length)
+    }
+    // 小册子：跨折线的纸张叠放序号（折叠前按此顺序叠纸）
+    if (mode === 'booklet' && deco.font) {
+      const sheetNo = Math.floor(start / cells.length) + 1
+      const totalSheets = Math.ceil(sequence.length / cells.length)
+      // Helvetica（WinAnsi）无法编码中文，纸张序号用数字标记
+      const text = `Sheet ${sheetNo} / ${totalSheets}`
+      const size = 8
+      const textWidth = deco.font.widthOfTextAtSize(text, size)
+      sheetPage.drawText(text, {
+        x: sheet.width / 2 - textWidth / 2,
+        y: sheet.height - 12,
+        size,
+        font: deco.font,
+        color: rgb(0.55, 0.55, 0.55),
+      })
     }
     // 水印整页铺放（透明度已烘焙进 PNG）
     if (deco.watermark) {
@@ -174,7 +196,8 @@ export async function buildOutput(
   const out = await PDFDocument.create()
   const deco: Decorations = {}
   const padPages: number[] = []
-  if (settings.pageNumbers) {
+  if (settings.pageNumbers || settings.mode === 'booklet') {
+    // 小册子即使关闭页码也需要字体：纸张叠放序号是折叠辅助信息
     deco.font = await out.embedFont(StandardFonts.Helvetica)
   }
   if (settings.watermarkText.trim()) {
@@ -212,6 +235,8 @@ export async function buildOutput(
       pageMap,
       chapter.pageRotations,
       chapter.pageCrops,
+      chapter.pageLabels,
+      settings.mode,
       cells,
       sheet,
       // 小册子固定左右并排（折叠方向），不自动旋转页面

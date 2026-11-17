@@ -45,6 +45,11 @@ export function LivePreview() {
       ? bookletPageOrder(kept.length).map((p) => (p >= 1 && p <= kept.length ? kept[p - 1]! : -1))
       : kept
   const previewSlots = sequence.slice(0, cells.length)
+  // 格内页码：小册子显示逻辑页号（折叠后阅读页码），其余为槽位序号
+  const previewLabels =
+    settings.mode === 'booklet'
+      ? bookletPageOrder(kept.length).slice(0, cells.length)
+      : cells.map((_, k) => k + 1)
   const cssScale = width > 0 ? width / sheet.width : 0
   const watermarkText =
     settings.watermarkEnabled && settings.watermarkText.trim() ? settings.watermarkText.trim() : null
@@ -121,7 +126,7 @@ export function LivePreview() {
                           className="absolute bottom-0.5 right-1 tabular-nums text-muted-foreground"
                           style={{ fontSize: Math.max(8, Math.min(12, cell.width * 0.025 * cssScale)) }}
                         >
-                          {k + 1}
+                          {previewLabels[k]}
                         </span>
                       )}
                     </div>
@@ -139,7 +144,9 @@ export function LivePreview() {
               className="pointer-events-none absolute top-0 bottom-0 border-l border-dashed border-muted-foreground/40"
               style={{ left: `${cssScale * (sheet.width / 2)}px` }}
             >
-              <span className="absolute left-1 top-1 text-[10px] text-muted-foreground/70">对折线</span>
+              <span className="absolute left-1 top-1 text-[10px] text-muted-foreground/70">
+                对折线 · 第 1 张 / 共 {Math.max(1, Math.ceil(sequence.length / cells.length))} 张
+              </span>
             </div>
           )}
           {watermarkText && width > 0 && (

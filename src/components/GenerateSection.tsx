@@ -54,22 +54,26 @@ export function GenerateSection({ onPreview }: GenerateSectionProps) {
       const sheet = computeSheet(effectiveSizes, settings, sourceFirst)
 
       patchTask({ status: 'processing', progressCurrent: 0, progressTotal: 0, progressChapter: '' })
-      const sequenceFor = (f: PdfFileRecord): number[] => {
+      const sequenceFor = (f: PdfFileRecord): { sequence: number[]; pageLabels?: number[] } => {
         const kept = keptPageIndices(f)
         if (settings.mode === 'booklet') {
-          return bookletPageOrder(kept.length).map((p) =>
-            p >= 1 && p <= kept.length ? kept[p - 1]! : -1,
-          )
+          const labels = bookletPageOrder(kept.length)
+          return {
+            sequence: labels.map((p) => (p >= 1 && p <= kept.length ? kept[p - 1]! : -1)),
+            pageLabels: labels,
+          }
         }
-        return kept
+        return { sequence: kept }
       }
       const chapters: ProcessRequest['chapters'] = []
       for (const f of readyFiles) {
+        const { sequence, pageLabels } = sequenceFor(f)
         chapters.push({
           id: f.id,
           name: chapterLabel(f),
           bytes: await f.file.arrayBuffer(),
-          sequence: sequenceFor(f),
+          sequence,
+          pageLabels,
           pageRotations: f.pageRotations,
           pageCrops: f.pageCrops,
         })

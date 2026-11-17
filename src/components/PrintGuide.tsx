@@ -65,7 +65,8 @@ export function PrintGuide() {
                 <li>奇数章补的空白页都落在纸张背面，不浪费正面</li>
                 <li>
                   小册子模式：双面打印后<b className="text-foreground">逐张对折</b>
-                  ，按页序叠放并沿折线装订即为成册
+                  ，按页序叠放并沿折线装订即为成册；每张纸顶部印有
+                  「Sheet X / Y」叠放顺序标记（先印「Sheet 1 / 2」放最上面）
                 </li>
               </ol>
               <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">

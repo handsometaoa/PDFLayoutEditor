@@ -17,6 +17,8 @@ export interface ProcessRequest {
     pageRotations?: Record<number, number>
     /** 裁白边（源页索引 -> 裁剪框比例） */
     pageCrops?: Record<number, CropFrac>
+    /** 每个槽位的逻辑页号（-1 = 空白槽位） */
+    pageLabels?: number[]
   }>
   settings: SheetSettings
   /** true = 各章单独输出；false = 合并为一个 PDF */
@@ -54,6 +56,7 @@ self.addEventListener('message', async (event: MessageEvent<ProcessRequest>) => 
       sequence: c.sequence,
       pageRotations: c.pageRotations,
       pageCrops: c.pageCrops,
+      pageLabels: c.pageLabels,
     }))
 
     const results: Array<{
